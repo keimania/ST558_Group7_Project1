@@ -1,6 +1,7 @@
 library(httr)
 library(tibble)
 library(jsonlite)
+library(dplyr)
 
 # 1. helper function
 helper <- function(year = 2022,
@@ -59,12 +60,37 @@ helper <- function(year = 2022,
     stop("Error: The Census API returned an error. Status code: ", status_code(response))
   }
   parsed <- fromJSON(rawToChar(response$content))
+  
   # Set Column names as first row and convert to tibble
   header <- parsed[1,]
   data <- parsed[-1,]
   colnames(data) <- header
   result_tibble <- as_tibble(data)
   return(result_tibble)
+}
+
+# 2. multiple helper function
+
+multiple_years_helper<- function(years, ...) {
+  
+  # Use lapply to call the single-year function for each year in the vector
+  multiple_years_data <- lapply(years, function(y) {
+    message("Fetching data for year: ", y)
+    
+    # Call the single-year function, passing along extra arguments
+    result_tibble <- helper(year = y, ...)
+    
+    # Add a year column
+    result_tibble$year <- y
+    
+    # print(result_tibble)
+    return(result_tibble)
+  })
+  
+  # Combine all the tibbles into a single one
+  combined_result_tibble <- bind_rows(multiple_years_data)
+  
+  return(combined_result_tibble)
 }
 
 # Example 1: Single Year Query
@@ -80,7 +106,7 @@ data_2021 <- helper(
   arguments = list('SCHL' = "24")
 )
 
-print(head(data_2021))
+print(data_2021)
 
 # b. Get data for state:6, year:2022, JWTRNS:10 including GRPIP, JWAP, JWDP, JWMNP, FER, HHL, HISPEED, SCH
 data_2022 <- helper(
@@ -92,4 +118,32 @@ data_2022 <- helper(
   arguments = list('JWTRNS' = "10")
 )
 
-print(head(data_2022))
+print(data_2022)
+
+# Example 2: Multiple Year Query
+message("Example 2: Multiple Year Query")
+
+# a. Get data for region:3, years:2021-2022, SCHL:24 including
+data_2021_2022 <- multiple_years_helper(
+  years = c(2021, 2022),
+  numeric_vars = c("AGEP", "GASP"),
+  categorical_vars = c("SEX"),
+  geography = c("region"),
+  geo_level = c("3"),
+  arguments = list('SCHL' = "24")
+)
+
+print(data_2021_2022)
+
+# b. Get data for state:6, years:2019, 2021, 2022, JWTRNS:10 including GRPIP, JWAP, JWDP, JWMNP, FER, HHL, HISPEED, SCH
+data_2019_2022 <- multiple_years_helper(
+  # Caution : There is no data in 2020
+  years = c(2019, 2021, 2022),
+  numeric_vars = c("GRPIP", "JWAP", "JWDP", "JWMNP"),
+  categorical_vars = c("FER", "HHL", "HISPEED", "SCH"),
+  geography = c("state"),
+  geo_level = c("6"),
+  arguments = list('JWTRNS' = "10")
+)
+
+print(data_2019_2022)
