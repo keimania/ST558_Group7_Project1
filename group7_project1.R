@@ -20,12 +20,12 @@ helper <- function(year = 2022,
   ## variable validation
   valid_numeric_vars <- c("AGEP", "GASP", "GRPIP", "JWAP", "JWDP", "JWMNP")
   if (!all(numeric_vars %in% valid_numeric_vars)) {
-    stop("Error: Invalid numeric variables requested.")
+    stop("Error: Invalid numeric variables inputted")
   }
   
   valid_categorical_vars <- c("FER", "HHL", "HISPEED", "JWTRNS", "SCH", "SCHL", "SEX")
   if (!all(categorical_vars %in% valid_categorical_vars)) {
-    stop("Error: Invalid categorical variables requested.")
+    stop("Error: Invalid categorical variables inputted")
   }
   
   ## Geography validation : region, division, state should be lowercase

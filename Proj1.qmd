@@ -13,6 +13,7 @@ library(jsonlite)
 library(dplyr)
 library(ggplot2)
 library(tidyr)
+
 ```
 
 ```{r}
@@ -367,29 +368,147 @@ The calculated values match the values given by our function. This is good!
 
 ## Plotting Method
 
--   The following code is trying to get the boxplot to work, as specified in the project instructions. The box plot comes out looking really odd, so I've tried to get boxplots to work below this, by modifying the code that was given to us.
+-   The following code creates box plots based on a user specified categorical variable and numeric variable.
 
--   
+-   It also checks to make sure variables are correctly specified, and stops if they aren't.
+
+-   I filter out na values before plotting, to ensure the plot is accurate and looks good.
 
 ```{r}
 # First attempt at plot.census function
 plot.census<-function(cen_tbl,cat_var,num_var){
   
+  ## variable validation
+  valid_numeric_vars <- c("AGEP", "GASP", "GRPIP", "JWAP", "JWDP", "JWMNP")
+  if (!(num_var %in% valid_numeric_vars)) {
+    stop("Error: Invalid numeric variables inputted")
+  }
+  
+  valid_categorical_vars <- c("FER", "HHL", "HISPEED", "JWTRNS", "SCH", "SCHL", "SEX")
+  if (!(cat_var %in% valid_categorical_vars)) {
+    stop("Error: Invalid categorical variables inputted")
+  }
   # The all_of command helps handle string column names
 plt_tbl <- cen_tbl %>%
   select(all_of(c(cat_var, num_var, "PWGTP"))) %>%
   drop_na(all_of(c(cat_var, num_var)))
   
   
-ggplot(plt_tbl, aes(x = get(cat_var), y = get(num_var), weight = PWGTP)) +
+ggplot(plt_tbl, aes(x = get(cat_var), y = as.numeric(get(num_var)), weight = as.numeric(PWGTP))) +
   geom_boxplot()
-}
 }
 ```
 
+Testing the plot function
+
 ```{r}
+
+# making sure the stop clause works
+plot.census(data_2021, cat_var = "SCL", num_var = "GASP")
+
+plot.census(data_2021, cat_var = "SCHL", num_var = "GSP")
+
 plot.census(data_2021, cat_var = "SCHL", num_var = "GASP")
 
+plot.census(data_2021, cat_var = "SCHL", num_var = "AGEP")
+
+plot.census(data_2021, cat_var = "SEX", num_var = "GASP")
 ```
 
 ![](http://127.0.0.1:45447/chunk_output/93E863F1b2d5ce16/27E0E6ED/ckd7kv56shqsd/000009.png)
+
+## Investigating Something from the Data
+
+-   I'd like to investigate affordability between states, over time. My fundamental question is--how has gross rent as a percentage of household income past 12 months changed over time, and does this vary by sex? Is there a difference in this between North Carolina, a state that is considered relatively affordable, and New York, a state that is reputed to be affordable?
+
+First, we get the data.
+
+```{r}
+data_2010_NC <- helper(
+  year = 2010,
+  numeric_vars = c("GRPIP"),
+  categorical_vars = c("SEX"),
+  geography = c("state"),
+  geo_level = c("37"),
+) 
+
+data_2010_NY <- helper(
+  year = 2010,
+  numeric_vars = c("GRPIP"),
+  categorical_vars = c("SEX"),
+  geography = "state",
+  geo_level = "36"
+)
+
+```
+
+```{r}
+data_2022_NC <- helper(
+  year = 2022,
+  numeric_vars = c("GRPIP"),
+  categorical_vars = c("SEX"),
+  geography = c("state"),
+  geo_level = c("37"),
+) 
+
+data_2022_NY <- helper(
+  year = 2022,
+  numeric_vars = c("GRPIP"),
+  categorical_vars = c("SEX"),
+  geography = "state",
+  geo_level = "36"
+)
+
+```
+
+Let's look at a summary of the data for our relevant variables
+
+```{r}
+summary(data_2010_NC,c("GRPIP"), c("SEX"))
+
+
+```
+
+```{r}
+summary(data_2022_NC,c("GRPIP"), c("SEX"))
+```
+
+In North Carolina, the average gross rent as a percentage of household income (GRPIP) is lower in 2022 than 2010.
+
+```{r}
+summary(data_2010_NY,c("GRPIP"), c("SEX"))
+
+```
+
+```{r}
+summary(data_2022_NY,c("GRPIP"), c("SEX"))
+```
+
+In New York, the average gross rent as a percentage of household income (GRPIP) is lower in 2022 than 2010. This is surprising--there is a lot of discourse about rising rents in New York and in the United States in general. However, New Yorkers are still spending more on their rents on average than North Carolinians.
+
+## Plotting
+
+First, I'd like to compare sex and GRPIP.
+
+```{r}
+plot.census(data_2010_NC, cat_var = "SEX", num_var = "GRPIP")
+```
+
+```{r}
+plot.census(data_2022_NC, cat_var = "SEX", num_var = "GRPIP")
+```
+
+While GRPIP has decreased for both men (1) and women (2) between 2010 and 2022 in North Carolina, there is still a gap between men and women in average gross rent as a percentage of household income, with women paying more than men on average.
+
+```{r}
+plot.census(data_2010_NY, cat_var = "SEX", num_var = "GRPIP")
+
+```
+
+```{r}
+plot.census(data_2022_NY, cat_var = "SEX", num_var = "GRPIP")
+```
+
+-   While GRPIP has decreased for both men (1) and women (2) between 2010 and 2022 in New York as well as North Carolina, there is still a gap between men and women in average gross rent as a percentage of household income, with women paying more than men on average. However, comparing North Carolina and New York, it appears as though North Carolina has a slightly larger gap between rent GRPIP between men and women.
+
+-   While GRPIP generally decreased for North Carolinians and New Yorkers between 2010 and 2022, the gap in GRPIP persists between men and women. This could be a result of the income gap.
