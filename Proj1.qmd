@@ -495,9 +495,12 @@ Testing the plot function
 ```{r}
 
 # making sure the stop clause works
-plot.census(data_2021, cat_var = "SCL", num_var = "GASP")
 
-plot.census(data_2021, cat_var = "SCHL", num_var = "GSP")
+# plot.census(data_2021, cat_var = "SCL", num_var = "GASP")
+# 
+# plot.census(data_2021, cat_var = "SCHL", num_var = "GSP")
+
+# stop clause does work. Commented these lines out so document could render error free.
 
 plot.census(data_2021, cat_var = "SCHL", num_var = "GASP")
 
