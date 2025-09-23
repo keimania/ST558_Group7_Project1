@@ -14,6 +14,154 @@ library(dplyr)
 
 ```
 
+```{r}
+# 1. helper function
+helper <- function(year = 2022,
+                   numeric_vars = c("AGEP", "PWGTP"),
+                   categorical_vars = c("SEX"),
+                   geography = "All",
+                   geo_level = "*",
+                   arguments = NULL) {
+  
+  # Input Validation
+  ## year validation
+  if (!is.numeric(year) || length(year) != 1 || year < 2010 || year > 2022) {
+    stop("Error: 'year' must be a single number between 2010 and 2022.")
+  }
+  
+  ## variable validation
+  valid_numeric_vars <- c("AGEP", "GASP", "GRPIP", "JWAP", "JWDP", "JWMNP")
+  if (!all(numeric_vars %in% valid_numeric_vars)) {
+    stop("Error: Invalid numeric variables requested.")
+  }
+  
+  valid_categorical_vars <- c("FER", "HHL", "HISPEED", "JWTRNS", "SCH", "SCHL", "SEX")
+  if (!all(categorical_vars %in% valid_categorical_vars)) {
+    stop("Error: Invalid categorical variables requested.")
+  }
+  
+  ## Geography validation : region, division, state should be lowercase
+  valid_geography <- c("All", "region", "division", "state")
+  if (!all(geography %in% valid_geography)) {
+    stop("Error: Invalid geography requested.")
+  }
+  
+  base <- paste("https://api.census.gov/data/", year, "/acs/acs1/pums", sep = "")
+  
+  # Construct query parameters
+  ## Ensure PWGTP is always included for calculations
+  all_vars <- unique(c("PWGTP", numeric_vars, categorical_vars))
+  ## If geography is "All", do not include 'for' parameter
+  if (geography == "All") {
+    query_params <- c(
+      list('get' = paste(all_vars, collapse = ",")),
+      arguments
+    )
+    ## If geography is specified, include geography and geo level in 'for' parameter
+  } else {
+    query_params <- c(
+      list('get' = paste(all_vars, collapse = ",")),
+      list('for' = paste0(geography, ":", geo_level)),
+      arguments
+    )
+  }
+  
+  # request data from API
+  response <- GET(url = base, query = query_params)
+  if (status_code(response) != 200) {
+    stop("Error: The Census API returned an error. Status code: ", status_code(response))
+  }
+  parsed <- fromJSON(rawToChar(response$content))
+  
+  # Set Column names as first row and convert to tibble
+  header <- parsed[1,]
+  data <- parsed[-1,]
+  colnames(data) <- header
+  result_tibble <- as_tibble(data)
+  return(result_tibble)
+}
+
+# 2. multiple helper function
+
+multiple_years_helper<- function(years, ...) {
+  
+  # Use lapply to call the single-year function for each year in the vector
+  multiple_years_data <- lapply(years, function(y) {
+    message("Fetching data for year: ", y)
+    
+    # Call the single-year function, passing along extra arguments
+    result_tibble <- helper(year = y, ...)
+    
+    # Add a year column
+    result_tibble$year <- y
+    
+    # print(result_tibble)
+    return(result_tibble)
+  })
+  
+  # Combine all the tibbles into a single one
+  combined_result_tibble <- bind_rows(multiple_years_data)
+  
+  return(combined_result_tibble)
+}
+
+# Example 1: Single Year Query
+message("Example 1: Single Year Query")
+
+# a. Get data for region:3, year:2021, SCHL:24 including AGEP, GASP, SEX
+data_2021 <- helper(
+  year = 2021,
+  numeric_vars = c("AGEP", "GASP"),
+  categorical_vars = c("SEX"),
+  geography = c("region"),
+  geo_level = c("3"),
+  arguments = list('SCHL' = "24")
+)
+
+print(data_2021)
+
+# b. Get data for state:6, year:2022, JWTRNS:10 including GRPIP, JWAP, JWDP, JWMNP, FER, HHL, HISPEED, SCH
+data_2022 <- helper(
+  year = 2022,
+  numeric_vars = c("GRPIP", "JWAP", "JWDP", "JWMNP"),
+  categorical_vars = c("FER", "HHL", "HISPEED", "SCH"),
+  geography = c("state"),
+  geo_level = c("6"),
+  arguments = list('JWTRNS' = "10")
+)
+
+print(data_2022)
+
+# Example 2: Multiple Year Query
+message("Example 2: Multiple Year Query")
+
+# a. Get data for region:3, years:2021-2022, SCHL:24 including
+data_2021_2022 <- multiple_years_helper(
+  years = c(2021, 2022),
+  numeric_vars = c("AGEP", "GASP"),
+  categorical_vars = c("SEX"),
+  geography = c("region"),
+  geo_level = c("3"),
+  arguments = list('SCHL' = "24")
+)
+
+print(data_2021_2022)
+
+# b. Get data for state:6, years:2019, 2021, 2022, JWTRNS:10 including GRPIP, JWAP, JWDP, JWMNP, FER, HHL, HISPEED, SCH
+data_2019_2022 <- multiple_years_helper(
+  # Caution : There is no data in 2020
+  years = c(2019, 2021, 2022),
+  numeric_vars = c("GRPIP", "JWAP", "JWDP", "JWMNP"),
+  categorical_vars = c("FER", "HHL", "HISPEED", "SCH"),
+  geography = c("state"),
+  geo_level = c("6"),
+  arguments = list('JWTRNS' = "10")
+)
+
+print(data_2019_2022)
+
+```
+
 ## Person Level Records
 
 ### Adding Additional Class
@@ -104,12 +252,35 @@ numeric_vars <- c("AGEP", "GASP", "GRPIP", "JWAP", "JWDP", "JWMNP")
 #Defining Default Categorical Variables for the method
 categorical_vars <- c("FER", "HHL", "HISPEED", "JWTRNS", "SCH", "SCHL", "SEX")
 
-summary.census <- function(cen_tbl,num_var=numeric_vars, cat_var=categorical_vars ){
+summary.census <- function(cen_tbl,num_vars=numeric_vars, cat_vars=categorical_vars ){
   
-  cen_tbl|>
-    select(num_var)|>
-    
+  # initialize list to return information
+  ret_list<-list() 
+  
+  # First, lets get counts
+  for (cat_var in cat_vars){
+    print(cat_var)
+    print(table(cen_tbl[[cat_var]]))
+   
+  }
+  
+  
     
   
 }
+```
+
+```{r}
+## TESTING
+data_2021 <- helper(
+  year = 2021,
+  numeric_vars = c("AGEP", "GASP"),
+  categorical_vars = c("SEX"),
+  geography = c("region"),
+  geo_level = c("3"),
+  arguments = list('SCHL' = "23,24")
+)
+
+print(data_2021$SEX)
+summary(data_2021)
 ```
