@@ -4,6 +4,44 @@ format: html
 editor: visual
 ---
 
+# Querying the PUMS Census API
+
+## Introduction
+
+The goal of this project is to create some functions to query the PUMS census API, and then to summarize and visualize queries. We would also like to investigate a question of interest at the end, using our new functions.
+
+## Data Processing
+
+We would ultimately like to build our API querying functions here. Our goal is to allow the user to get information from the API related to the following numeric variables:
+
+-   AGEP --- Age of the person (in years)
+
+-   GASP\--Gas constant (monthly)
+
+-   GRPIP --- Gross Rent as a Percentage of Income
+
+-   JWAP --- Time of arrival at wor
+
+-   JWDP --- Time of departure from work
+
+-   JWMNP --- Travel time to work (in minutes)
+
+And categorical variables:
+
+-   FER --- Fertility (whether the woman had a birth in the last 12 months)
+
+-   HHL --- Household language
+
+-   HISPEED --- Access to high-speed internet
+
+-   JWTRNS --- Means of transportation to work
+
+-   SCH --- School enrollment
+
+-   SCHL --- Educational attainment
+
+-   SEX --- Sex
+
 First, we load our libraries
 
 ```{r}
