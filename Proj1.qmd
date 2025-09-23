@@ -1,0 +1,115 @@
+---
+title: "Project1_g7"
+format: html
+editor: visual
+---
+
+First, we load our libraries
+
+```{r}
+library(httr)
+library(tibble)
+library(jsonlite)
+library(dplyr)
+
+```
+
+## Person Level Records
+
+### Adding Additional Class
+
+First, we modify our function to create the data, to make the tibble have an additional class of census.
+
+I'm just copying the original helper function. The modified line is noted.
+
+```{r}
+# 1. helper function
+helper <- function(year = 2022,
+                   numeric_vars = c("AGEP", "PWGTP"),
+                   categorical_vars = c("SEX"),
+                   geography = "All",
+                   geo_level = "*",
+                   arguments = NULL) {
+  
+  # Input Validation
+  ## year validation
+  if (!is.numeric(year) || length(year) != 1 || year < 2010 || year > 2022) {
+    stop("Error: 'year' must be a single number between 2010 and 2022.")
+  }
+  
+  ## variable validation
+  valid_numeric_vars <- c("AGEP", "GASP", "GRPIP", "JWAP", "JWDP", "JWMNP")
+  if (!all(numeric_vars %in% valid_numeric_vars)) {
+    stop("Error: Invalid numeric variables requested.")
+  }
+  
+  valid_categorical_vars <- c("FER", "HHL", "HISPEED", "JWTRNS", "SCH", "SCHL", "SEX")
+  if (!all(categorical_vars %in% valid_categorical_vars)) {
+    stop("Error: Invalid categorical variables requested.")
+  }
+  
+  ## Geography validation : region, division, state should be lowercase
+  valid_geography <- c("All", "region", "division", "state")
+  if (!all(geography %in% valid_geography)) {
+    stop("Error: Invalid geography requested.")
+  }
+  
+  base <- paste("https://api.census.gov/data/", year, "/acs/acs1/pums", sep = "")
+  
+  # Construct query parameters
+  ## Ensure PWGTP is always included for calculations
+  all_vars <- unique(c("PWGTP", numeric_vars, categorical_vars))
+  ## If geography is "All", do not include 'for' parameter
+  if (geography == "All") {
+    query_params <- c(
+      list('get' = paste(all_vars, collapse = ",")),
+      arguments
+    )
+    ## If geography is specified, include geography and geo level in 'for' parameter
+  } else {
+    query_params <- c(
+      list('get' = paste(all_vars, collapse = ",")),
+      list('for' = paste0(geography, ":", geo_level)),
+      arguments
+    )
+  }
+  
+  # request data from API
+  response <- GET(url = base, query = query_params)
+  if (status_code(response) != 200) {
+    stop("Error: The Census API returned an error. Status code: ", status_code(response))
+  }
+  parsed <- fromJSON(rawToChar(response$content))
+  
+  # Set Column names as first row and convert to tibble
+  header <- parsed[1,]
+  data <- parsed[-1,]
+  colnames(data) <- header
+  result_tibble <- as_tibble(data)
+  
+  ## Adding an additional class to the tibble
+  class(result_tibble) <- c("census", class(result_tibble))
+  
+  
+  return(result_tibble)
+}
+```
+
+### Summary Method
+
+```{r}
+#Defining default Numeric Variables for the method
+numeric_vars <- c("AGEP", "GASP", "GRPIP", "JWAP", "JWDP", "JWMNP")
+
+#Defining Default Categorical Variables for the method
+categorical_vars <- c("FER", "HHL", "HISPEED", "JWTRNS", "SCH", "SCHL", "SEX")
+
+summary.census <- function(cen_tbl,num_var=numeric_vars, cat_var=categorical_vars ){
+  
+  cen_tbl|>
+    select(num_var)|>
+    
+    
+  
+}
+```
