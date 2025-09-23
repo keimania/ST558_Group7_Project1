@@ -8,7 +8,7 @@ editor: visual
 
 ## Introduction
 
-The goal of this project is to create some functions to query the PUMS census API, and then to summarize and visualize queries. We would also like to investigate a question of interest at the end, using our new functions.
+The goal of this project is to create some functions to query the PUMS census API, and then to summarize and visualize queries. After building these functions, we will then use them to invistage the relationship between location, gross rent as a percentage of income, and sex.
 
 ## Data Processing
 
@@ -42,6 +42,12 @@ And categorical variables:
 
 -   SEX --- Sex
 
+We would also like to be able to specify the geography level. The possible values for this are All, Region, Division, or State. The user can then specify which region, divison or state they would like to return information for using the geo_level parameter.
+
+Furthemore, we will also allow the user to specify an optional argument to subset the data.
+
+### Let's build it!
+
 First, we load our libraries
 
 ```{r}
@@ -53,6 +59,8 @@ library(ggplot2)
 library(tidyr)
 
 ```
+
+First, we will build a helper function to take what is returned by GET() and turn it into a tibble. We are also building in all the requirements specified at the beginning of the data processing section.
 
 ```{r}
 # 1. helper function
@@ -118,11 +126,60 @@ helper <- function(year = 2022,
   data <- parsed[-1,]
   colnames(data) <- header
   result_tibble <- as_tibble(data)
-  return(result_tibble)
+  
+  #Convert numeric variables as numeric
+  for (num_var in numeric_vars) {
+  if (num_var %in% colnames(result_tibble)) {
+    result_tibble[[num_var]] <- as.numeric(result_tibble[[num_var]])}}
+
+  # Converting categorical variables to be factors
+  for (cat_var in categorical_vars) {
+  if (cat_var %in% colnames(result_tibble)) {
+    result_tibble[[cat_var]] <- factor(result_tibble[[cat_var]])
+  }
 }
+  
+  
 
-# 2. multiple helper function
+return(result_tibble)
+  
+}
+```
 
+Testing the helper function
+
+```{r}
+# Example 1: Single Year Query
+
+# a. Get data for region:3, year:2021, SCHL:24 including AGEP, GASP, SEX
+data_2021 <- helper(
+  year = 2021,
+  numeric_vars = c("AGEP", "GASP"),
+  categorical_vars = c("SEX"),
+  geography = c("region"),
+  geo_level = c("3"),
+  arguments = list('SCHL' = "24")
+)
+
+print(data_2021)
+
+
+# b. Get data for state:6, year:2022, JWTRNS:10 including GRPIP, JWAP, JWDP, JWMNP, FER, HHL, HISPEED, SCH
+data_2022 <- helper(
+  year = 2022,
+  numeric_vars = c("GRPIP", "JWAP", "JWDP", "JWMNP"),
+  categorical_vars = c("FER", "HHL", "HISPEED", "SCH"),
+  geography = c("state"),
+  geo_level = c("6"),
+  arguments = list('JWTRNS' = "10")
+)
+
+print(data_2022)
+```
+
+The results from the helper functions look good. We will now move on to building a function that can handle queries across multiple years.
+
+```{r}
 multiple_years_helper<- function(years, ...) {
   
   # Use lapply to call the single-year function for each year in the vector
@@ -144,34 +201,11 @@ multiple_years_helper<- function(years, ...) {
   
   return(combined_result_tibble)
 }
+```
 
-# Example 1: Single Year Query
-message("Example 1: Single Year Query")
+Now that the multiple year query function has been built, we will test it out.
 
-# a. Get data for region:3, year:2021, SCHL:24 including AGEP, GASP, SEX
-data_2021 <- helper(
-  year = 2021,
-  numeric_vars = c("AGEP", "GASP"),
-  categorical_vars = c("SEX"),
-  geography = c("region"),
-  geo_level = c("3"),
-  arguments = list('SCHL' = "24")
-)
-
-print(data_2021)
-
-# b. Get data for state:6, year:2022, JWTRNS:10 including GRPIP, JWAP, JWDP, JWMNP, FER, HHL, HISPEED, SCH
-data_2022 <- helper(
-  year = 2022,
-  numeric_vars = c("GRPIP", "JWAP", "JWDP", "JWMNP"),
-  categorical_vars = c("FER", "HHL", "HISPEED", "SCH"),
-  geography = c("state"),
-  geo_level = c("6"),
-  arguments = list('JWTRNS' = "10")
-)
-
-print(data_2022)
-
+```{r}
 # Example 2: Multiple Year Query
 message("Example 2: Multiple Year Query")
 
@@ -199,18 +233,23 @@ data_2019_2022 <- multiple_years_helper(
 )
 
 print(data_2019_2022)
-
 ```
 
 ## Summary Method
 
 ### Adding Additional Class
 
-First, we modify our function to create the data, to make the tibble have an additional class of census.
+-   We would like to add another class to the data, so we can create census specific methods for it.
 
-I'm just copying the original helper function. The modified line is noted.
+```{=html}
+<!-- -->
+```
+-   First, we modify our helper function to create the data, to make the tibble have an additional class of census.
+
+-   I just copied the original helper function from above. The modified line is noted.
 
 ```{r}
+
 # 1. helper function
 helper <- function(year = 2022,
                    numeric_vars = c("AGEP", "PWGTP"),
@@ -275,12 +314,26 @@ helper <- function(year = 2022,
   colnames(data) <- header
   result_tibble <- as_tibble(data)
   
-  ## Adding an additional class to the tibble
-  class(result_tibble) <- c("census", class(result_tibble))
-  
-  
-  return(result_tibble)
+  #Convert numeric variables as numeric
+  for (num_var in numeric_vars) {
+  if (num_var %in% colnames(result_tibble)) {
+    result_tibble[[num_var]] <- as.numeric(result_tibble[[num_var]])}}
+
+  # Converting categorical variables to be factors
+  for (cat_var in categorical_vars) {
+  if (cat_var %in% colnames(result_tibble)) {
+    result_tibble[[cat_var]] <- factor(result_tibble[[cat_var]])
+  }
 }
+  
+  # The following line is our new modification, it adds a new class (census) to our result_tibble
+class(result_tibble) <- c("census", class(result_tibble))
+
+return(result_tibble)
+  
+}
+
+
 ```
 
 ### Summary Method
@@ -457,7 +510,7 @@ plot.census(data_2021, cat_var = "SEX", num_var = "GASP")
 
 ## Investigating Something from the Data
 
--   I'd like to investigate affordability between states, over time. My fundamental question is--how has gross rent as a percentage of household income past 12 months changed over time, and does this vary by sex? Is there a difference in this between North Carolina, a state that is considered relatively affordable, and New York, a state that is reputed to be affordable?
+-   I'd like to investigate affordability between states, over time. My fundamental question is--how has gross rent as a percentage of household income past 12 months (GRPIP) changed over time, and does this vary by sex? Is there a difference in this between North Carolina, a state that is considered relatively affordable, and New York, a state that is reputed to be unaffordable?
 
 First, we get the data.
 
@@ -549,4 +602,4 @@ plot.census(data_2022_NY, cat_var = "SEX", num_var = "GRPIP")
 
 -   While GRPIP has decreased for both men (1) and women (2) between 2010 and 2022 in New York as well as North Carolina, there is still a gap between men and women in average gross rent as a percentage of household income, with women paying more than men on average. However, comparing North Carolina and New York, it appears as though North Carolina has a slightly larger gap between rent GRPIP between men and women.
 
--   While GRPIP generally decreased for North Carolinians and New Yorkers between 2010 and 2022, the gap in GRPIP persists between men and women. This could be a result of the income gap.
+-   While GRPIP generally decreased for North Carolinians and New Yorkers between 2010 and 2022, the gap in GRPIP persists between men and women. This could be a result of the income gap between men and women.
