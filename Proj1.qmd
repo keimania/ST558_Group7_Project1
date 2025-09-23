@@ -162,7 +162,7 @@ print(data_2019_2022)
 
 ```
 
-## Person Level Records
+## Summary Method
 
 ### Adding Additional Class
 
@@ -245,6 +245,16 @@ helper <- function(year = 2022,
 
 ### Summary Method
 
+-   Below is a summary method.
+
+-   As arguments, it takes the tibble with class census, the numeric variable(s) to summarize, the categorical variable(s) to summarize. Default values for numeric variables and categorical variables are all variables.
+
+-   It returns a named list that contains summary statistics for each column.
+
+-   A count table is created for categorical variables, and mean and standard deviation are calculated for numeric variables.
+
+-   The names of the returned list described the summarized variable and relevant statistic.
+
 ```{r}
 #Defining default Numeric Variables for the method
 numeric_vars <- c("AGEP", "GASP", "GRPIP", "JWAP", "JWDP", "JWMNP")
@@ -257,16 +267,38 @@ summary.census <- function(cen_tbl,num_vars=numeric_vars, cat_vars=categorical_v
   # initialize list to return information
   ret_list<-list() 
   
-  # First, lets get counts
+  # First, lets get counts of categorical variables
+  # We append the count tables to the list
   for (cat_var in cat_vars){
-    print(cat_var)
-    print(table(cen_tbl[[cat_var]]))
-   
+    
+    #create summary table for column
+    sum_tab<-table(cen_tbl[[cat_var]])
+    
+    # add table to return list
+    item_name<-paste(cat_var, "count")
+    ret_list[[item_name]] <- sum_tab
   }
   
   
+  # Next, we get the means and standard deviations for our numeric variables
+  for (num_var in num_vars){
     
+    # Get column
+    num_var_col<-cen_tbl[[num_var]]
+    
+    # get mean and SD of col, ignore NA values
+    num_var_col_mean<-(mean(as.numeric(num_var_col, na.rm = TRUE)))
+    num_var_col_sd<-(sd(as.numeric(num_var_col, na.rm = TRUE)))
+    
+    # Add items to return list
+    
+    mean_item_name<-paste(num_var, "mean")
+    sd_item_name<-paste(num_var,"SD")
+    ret_list[[mean_item_name]] <- num_var_col_mean
+    ret_list[[sd_item_name]] <- num_var_col_sd
+  }
   
+  print(ret_list)
 }
 ```
 
@@ -279,7 +311,7 @@ data_2021 <- helper(
   geography = c("region"),
   geo_level = c("3"),
   arguments = list('SCHL' = "23,24")
-)
+) 
 
 print(data_2021$SEX)
 summary(data_2021)
