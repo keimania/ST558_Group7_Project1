@@ -302,6 +302,10 @@ summary.census <- function(cen_tbl,num_vars=numeric_vars, cat_vars=categorical_v
 }
 ```
 
+### Testing the new Summary function
+
+First, I return something with an API query.
+
 ```{r}
 ## TESTING
 data_2021 <- helper(
@@ -313,6 +317,49 @@ data_2021 <- helper(
   arguments = list('SCHL' = "23,24")
 ) 
 
-print(data_2021$SEX)
+```
+
+Next, let's test it out without specifying any variables.
+
+```{r}
 summary(data_2021)
 ```
+
+This seems to work well.
+
+Next, let's test it out, specifying some variables and verifying the calculated statistics.
+
+```{r}
+
+summary(data_2021,c("GASP", "AGEP"), c("SEX","SCHL"))
+
+
+```
+
+We will calculate these statistics without the function to verify that it is working properly.
+
+```{r}
+
+print("Table by SEX Variable")
+table(data_2021[["SEX"]])
+
+print("Table by SCHL Variable")
+table(data_2021[["SCHL"]])
+
+print("GASP mean")
+mean(as.numeric(data_2021[["GASP"]]),na.rm=TRUE)
+
+print("GASP SD")
+sd(as.numeric(data_2021[["GASP"]]),na.rm=TRUE)
+
+print("AGEP mean")
+mean(as.numeric(data_2021[["AGEP"]]),na.rm=TRUE)
+
+print("AGEP SD")
+sd(as.numeric(data_2021[["AGEP"]]),na.rm=TRUE)
+
+
+
+```
+
+The calculated values match the values given by our function. This is good!
