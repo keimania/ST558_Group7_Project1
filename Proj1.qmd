@@ -11,7 +11,8 @@ library(httr)
 library(tibble)
 library(jsonlite)
 library(dplyr)
-
+library(ggplot2)
+library(tidyr)
 ```
 
 ```{r}
@@ -363,3 +364,32 @@ sd(as.numeric(data_2021[["AGEP"]]),na.rm=TRUE)
 ```
 
 The calculated values match the values given by our function. This is good!
+
+## Plotting Method
+
+-   The following code is trying to get the boxplot to work, as specified in the project instructions. The box plot comes out looking really odd, so I've tried to get boxplots to work below this, by modifying the code that was given to us.
+
+-   
+
+```{r}
+# First attempt at plot.census function
+plot.census<-function(cen_tbl,cat_var,num_var){
+  
+  # The all_of command helps handle string column names
+plt_tbl <- cen_tbl %>%
+  select(all_of(c(cat_var, num_var, "PWGTP"))) %>%
+  drop_na(all_of(c(cat_var, num_var)))
+  
+  
+ggplot(plt_tbl, aes(x = get(cat_var), y = get(num_var), weight = PWGTP)) +
+  geom_boxplot()
+}
+}
+```
+
+```{r}
+plot.census(data_2021, cat_var = "SCHL", num_var = "GASP")
+
+```
+
+![](http://127.0.0.1:45447/chunk_output/93E863F1b2d5ce16/27E0E6ED/ckd7kv56shqsd/000009.png)
