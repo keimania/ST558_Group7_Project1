@@ -8,7 +8,7 @@ editor: visual
 
 ## Introduction
 
-The goal of this project is to create some functions to query the PUMS census API, and then to summarize and visualize queries. After building these functions, we will then use them to invistage the relationship between location, gross rent as a percentage of income, and sex.
+The goal of this project is to create some functions to query the PUMS census API, and then to summarize and visualize queries. After building these functions, we will then use them to investigate the relationship between location, gross rent as a percentage of income, and sex.
 
 ## Data Processing
 
@@ -241,9 +241,8 @@ print(data_2019_2022)
 
 -   We would like to add another class to the data, so we can create census specific methods for it.
 
-```{=html}
 <!-- -->
-```
+
 -   First, we modify our helper function to create the data, to make the tibble have an additional class of census.
 
 -   I just copied the original helper function from above. The modified line is noted.
