@@ -58,13 +58,10 @@ time_range_to_midpoint <- function(time_range_str) {
   # calculate midpoint
   mid <- t1 + as.numeric(difftime(t2, t1, units = "secs")) / 2
   
-  return(mid)
-  
-  # If you want to return as formatted string instead of POSIXct, uncomment below:
-  # mid_str <- format(mid, "%I:%M %p")
-  # mid_str <- gsub(" AM", " a.m.", mid_str)
-  # mid_str <- gsub(" PM", " p.m.", mid_str)
-  # return(mid_str)
+  mid_str <- format(mid, "%I:%M %p")
+  mid_str <- gsub(" AM", " a.m.", mid_str)
+  mid_str <- gsub(" PM", " p.m.", mid_str)
+  return(mid_str)
 }
 
 # 1. helper function
@@ -160,7 +157,7 @@ helper <- function(year = 2022,
           }
           # 3. Otherwise, calculate the midpoint. The function handles non-time strings.
           time_range_to_midpoint(label)
-        }, USE.NAMES = FALSE) %>% lubridate::as_datetime()
+        }, USE.NAMES = FALSE)
       )
   }
   
@@ -174,7 +171,7 @@ helper <- function(year = 2022,
             return(NA_POSIXct_)
           }
           time_range_to_midpoint(label)
-        }, USE.NAMES = FALSE) %>% lubridate::as_datetime()
+        }, USE.NAMES = FALSE)
       )
   }
   
