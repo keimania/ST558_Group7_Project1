@@ -65,8 +65,6 @@ time_range_to_midpoint <- function(time_range_str) {
 }
 
 # 1. helper function
-# The functions to create the lookup tables remain the same.
-
 helper <- function(year = 2022,
                    numeric_vars = c("AGEP", "PWGTP"),
                    categorical_vars = c("SEX"),
@@ -122,7 +120,8 @@ helper <- function(year = 2022,
   
   # Set Column names as first row and convert to tibble
   header <- parsed[1,]
-  data <- parsed[-1,]
+  # prevent from dropping the dimensions
+  data <- parsed[-1, , drop = FALSE]
   colnames(data) <- header
   result_tibble <- as_tibble(data)
   
@@ -178,25 +177,37 @@ helper <- function(year = 2022,
   return(result_tibble)
 }
 
-# --- NEW : Example Usage for JWAP, JWDP ---
+# Example 1: Single Year Query
 
-# First, ensure the lookup tables have been created for a relevant year (e.g., 2022)
+census_lookups <- create_lookup_tables(year = 2021, var_names = c("JWAP", "JWDP"))
 
-census_lookups <- create_lookup_tables(year = 2022, var_names = c("JWAP", "JWDP"))
-
-# Now, call the helper function requesting JWAP and JWDP
-# We'll get data for North Carolina (state code: 37)
-nc_work_times <- helper(
-  year = 2022,
-  numeric_vars = c("AGEP", "JWAP", "JWDP"),
+# a. Get data for region:3, year:2021, SCHL:24 including AGEP, GASP, SEX
+data_2021 <- helper(
+  year = 2021,
+  numeric_vars = c("AGEP", "GASP", "JWDP", "JWAP" ),
   categorical_vars = c("SEX"),
-  geography = "state",
-  geo_level = "37",
-  arguments = list('JWAP' = "258"),  # Example: Filter for Bachelor's degree holders
+  geography = c("region"),
+  geo_level = c("3"),
+  arguments = list('SCHL' = "24", 'JWAP' = "258"),
   census_lookups = census_lookups
 )
 
-print(nc_work_times)
+print(data_2021)
+
+
+# b. Get data for state:6, year:2022, JWTRNS:10 including GRPIP, JWAP, JWDP, JWMNP, FER, HHL, HISPEED, SCH
+census_lookups <- create_lookup_tables(year = 2022, var_names = c("JWAP", "JWDP"))
+
+data_2022 <- helper(
+  year = 2022,
+  numeric_vars = c("GRPIP", "JWAP", "JWDP", "JWMNP"),
+  categorical_vars = c("FER", "HHL", "HISPEED", "SCH"),
+  geography = c("state"),
+  geo_level = c("6"),
+  arguments = list('JWTRNS' = "10")
+)
+
+print(data_2022)
 
 # 2. multiple helper function
 
@@ -221,36 +232,6 @@ multiple_years_helper<- function(years, ...) {
   
   return(combined_result_tibble)
 }
-
-# Example 1: Single Year Query
-
-census_lookups <- create_lookup_tables(year = 2021, var_names = c("JWAP", "JWDP"))
-
-# a. Get data for region:3, year:2021, SCHL:24 including AGEP, GASP, SEX
-data_2021 <- helper(
-  year = 2021,
-  numeric_vars = c("AGEP", "GASP", "JWDP", "JWAP" ),
-  categorical_vars = c("SEX"),
-  geography = c("region"),
-  geo_level = c("3"),
-  arguments = list('SCHL' = "24"),
-  census_lookups = census_lookups
-)
-
-print(data_2021)
-
-
-# b. Get data for state:6, year:2022, JWTRNS:10 including GRPIP, JWAP, JWDP, JWMNP, FER, HHL, HISPEED, SCH
-data_2022 <- helper(
-  year = 2022,
-  numeric_vars = c("GRPIP", "JWAP", "JWDP", "JWMNP"),
-  categorical_vars = c("FER", "HHL", "HISPEED", "SCH"),
-  geography = c("state"),
-  geo_level = c("6"),
-  arguments = list('JWTRNS' = "10")
-)
-
-print(data_2022)
 
 # Example 2: Multiple Year Query
 message("Example 2: Multiple Year Query")
