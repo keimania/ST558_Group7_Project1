@@ -59,6 +59,7 @@ library(ggplot2)
 library(tidyr)
 library(stringr)
 library(lubridate)
+library(hms)
 ```
 
 Second, we build functions to calculate the time midpoint from 'JWAP' and 'JWDP' columns.
@@ -99,7 +100,7 @@ time_range_to_midpoint <- function(time_range_str) {
   # "9:40 p.m. to 9:44 p.m." → c("9:40 p.m.", "9:44 p.m.")
   parts <- str_split(time_range_str, " to ", simplify = TRUE)
   # if there are not exactly two parts, return original string
-  if (length(parts) != 2) return(NA_POSIXct_)
+  if (length(parts) != 2) return(as_hms(NA))
   
   # a.m. -> am, p.m -> pm
   t1_str <- gsub("\\.", "", parts[1])
@@ -111,11 +112,7 @@ time_range_to_midpoint <- function(time_range_str) {
   
   # calculate midpoint
   mid <- t1 + as.numeric(difftime(t2, t1, units = "secs")) / 2
-  
-  mid_str <- format(mid, "%I:%M %p")
-  mid_str <- gsub(" AM", " a.m.", mid_str)
-  mid_str <- gsub(" PM", " p.m.", mid_str)
-  return(mid_str)
+  return(as_hms(mid))
 }
 ```
 
@@ -200,35 +197,34 @@ helper <- function(year = 2022,
     }
   }
   
-  # NEW: Process Time Variables 
+  # --- NEW: Process Time Variables ---
   if ("JWAP" %in% all_vars) {
     result_tibble <- result_tibble %>%
       mutate(
         # Apply the conversion to each element safely
-        JWAP = sapply(as.character(JWAP), function(code) {
+        JWAP = as_hms(sapply(as.character(JWAP), function(code) {
           # 1. Look up the label for the current code
           label <- census_lookups$JWAP[[code]]
           # 2. If the lookup fails (returns NULL), return NA
           if (is.null(label)) {
-            return(NA_POSIXct_)
+            return(as_hms(NA))
           }
           # 3. Otherwise, calculate the midpoint. The function handles non-time strings.
           time_range_to_midpoint(label)
-        }, USE.NAMES = FALSE)
+        }, USE.NAMES = FALSE))
       )
   }
   
   if ("JWDP" %in% all_vars) {
     result_tibble <- result_tibble %>%
       mutate(
-        # Apply the same safe conversion to JWDP
-        JWDP = sapply(as.character(JWDP), function(code) {
+        JWDP = as_hms(sapply(as.character(JWDP), function(code) {
           label <- census_lookups$JWDP[[code]]
           if (is.null(label)) {
-            return(NA_POSIXct_)
+            return(as_hms(NA))
           }
           time_range_to_midpoint(label)
-        }, USE.NAMES = FALSE)
+        }, USE.NAMES = FALSE))
       )
   }
   
@@ -342,7 +338,6 @@ print(data_2019_2022)
 -   I just copied the original helper function from above. The modified line is noted.
 
 ```{r}
-#1. helper function
 helper <- function(year = 2022,
                    numeric_vars = c("AGEP", "PWGTP"),
                    categorical_vars = c("SEX"),
@@ -420,40 +415,38 @@ helper <- function(year = 2022,
     }
   }
   
-  # NEW: Process Time Variables 
+  # --- NEW: Process Time Variables ---
   if ("JWAP" %in% all_vars) {
     result_tibble <- result_tibble %>%
       mutate(
         # Apply the conversion to each element safely
-        JWAP = sapply(as.character(JWAP), function(code) {
+        JWAP = as_hms(sapply(as.character(JWAP), function(code) {
           # 1. Look up the label for the current code
           label <- census_lookups$JWAP[[code]]
           # 2. If the lookup fails (returns NULL), return NA
           if (is.null(label)) {
-            return(NA_POSIXct_)
+            return(as_hms(NA))
           }
           # 3. Otherwise, calculate the midpoint. The function handles non-time strings.
           time_range_to_midpoint(label)
-        }, USE.NAMES = FALSE)
+        }, USE.NAMES = FALSE))
       )
   }
   
   if ("JWDP" %in% all_vars) {
     result_tibble <- result_tibble %>%
       mutate(
-        # Apply the same safe conversion to JWDP
-        JWDP = sapply(as.character(JWDP), function(code) {
+        JWDP = as_hms(sapply(as.character(JWDP), function(code) {
           label <- census_lookups$JWDP[[code]]
           if (is.null(label)) {
-            return(NA_POSIXct_)
+            return(as_hms(NA))
           }
           time_range_to_midpoint(label)
-        }, USE.NAMES = FALSE)
+        }, USE.NAMES = FALSE))
       )
   }
   
-
-      # The following line is our new modification, it adds a new class (census) to our result_tibble
+  # The following line is our new modification, it adds a new class (census) to our result_tibble
   class(result_tibble) <- c("census", class(result_tibble))
   
   return(result_tibble)
@@ -503,18 +496,30 @@ summary.census <- function(cen_tbl,num_vars=numeric_vars, cat_vars=categorical_v
     # Get column
     num_var_col<-cen_tbl[[num_var]]
     
-    # get mean and SD of col, ignore NA values
-    num_var_col_mean<-(mean(as.numeric(num_var_col, na.rm = TRUE)))
-    num_var_col_sd<-(sd(as.numeric(num_var_col, na.rm = TRUE)))
-    
-    # Add items to return list
-    
-    mean_item_name<-paste(num_var, "mean")
-    sd_item_name<-paste(num_var,"SD")
-    ret_list[[mean_item_name]] <- num_var_col_mean
-    ret_list[[sd_item_name]] <- num_var_col_sd
+    if (inherits(num_var_col, "hms")) {
+      num_var_col_mean <- mean(num_var_col, na.rm = TRUE)
+      num_var_col_sd <- sd(as.numeric(num_var_col), na.rm = TRUE)
+      
+      # Add items to return list
+      mean_item_name <- paste(num_var, "mean")
+      sd_item_name <- paste(num_var, "SD (seconds)")
+      
+      # Add items to return list : hms type
+      ret_list[[mean_item_name]] <- as_hms(num_var_col_mean)
+      ret_list[[sd_item_name]] <- num_var_col_sd
+      
+    } else {
+      # get mean and SD of col, ignore NA values
+      num_var_col_mean <- mean(as.numeric(num_var_col), na.rm = TRUE)
+      num_var_col_sd <- sd(as.numeric(num_var_col), na.rm = TRUE)
+      
+      # Add items to return list
+      mean_item_name <- paste(num_var, "mean")
+      sd_item_name <- paste(num_var, "SD")
+      ret_list[[mean_item_name]] <- num_var_col_mean
+      ret_list[[sd_item_name]] <- num_var_col_sd
+    }
   }
-  
   print(ret_list)
 }
 ```
@@ -527,11 +532,12 @@ First, I return something with an API query.
 ## TESTING
 data_2021 <- helper(
   year = 2021,
-  numeric_vars = c("AGEP", "GASP"),
+  numeric_vars = c("AGEP", "GASP", "JWAP", "JWDP", "JWMNP"),
   categorical_vars = c("SEX"),
   geography = c("region"),
   geo_level = c("3"),
-  arguments = list('SCHL' = "23,24")
+  arguments = list('SCHL' = "23,24"),
+  census_lookups = census_lookups
 ) 
 
 ```
@@ -648,6 +654,7 @@ data_2010_NC <- helper(
   categorical_vars = c("SEX"),
   geography = c("state"),
   geo_level = c("37"),
+  census_lookups = census_lookups
 ) 
 
 data_2010_NY <- helper(
@@ -655,7 +662,8 @@ data_2010_NY <- helper(
   numeric_vars = c("GRPIP"),
   categorical_vars = c("SEX"),
   geography = "state",
-  geo_level = "36"
+  geo_level = "36",
+  census_lookups = census_lookups
 )
 
 ```
@@ -667,6 +675,7 @@ data_2022_NC <- helper(
   categorical_vars = c("SEX"),
   geography = c("state"),
   geo_level = c("37"),
+  census_lookups = census_lookups
 ) 
 
 data_2022_NY <- helper(
@@ -674,7 +683,8 @@ data_2022_NY <- helper(
   numeric_vars = c("GRPIP"),
   categorical_vars = c("SEX"),
   geography = "state",
-  geo_level = "36"
+  geo_level = "36",
+  census_lookups = census_lookups
 )
 
 ```
