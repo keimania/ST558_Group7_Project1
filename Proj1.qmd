@@ -200,7 +200,7 @@ helper <- function(year = 2022,
     }
   }
   
-  # --- NEW: Process Time Variables ---
+  # NEW: Process Time Variables 
   if ("JWAP" %in% all_vars) {
     result_tibble <- result_tibble %>%
       mutate(
@@ -342,14 +342,14 @@ print(data_2019_2022)
 -   I just copied the original helper function from above. The modified line is noted.
 
 ```{r}
-
-# 1. helper function
+#1. helper function
 helper <- function(year = 2022,
                    numeric_vars = c("AGEP", "PWGTP"),
                    categorical_vars = c("SEX"),
                    geography = "All",
                    geo_level = "*",
-                   arguments = NULL) {
+                   arguments = NULL,
+                   census_lookups = NULL) {
   
   # Input Validation
   ## year validation
@@ -360,12 +360,12 @@ helper <- function(year = 2022,
   ## variable validation
   valid_numeric_vars <- c("AGEP", "GASP", "GRPIP", "JWAP", "JWDP", "JWMNP")
   if (!all(numeric_vars %in% valid_numeric_vars)) {
-    stop("Error: Invalid numeric variables requested.")
+    stop("Error: Invalid numeric variables inputted")
   }
   
   valid_categorical_vars <- c("FER", "HHL", "HISPEED", "JWTRNS", "SCH", "SCHL", "SEX")
   if (!all(categorical_vars %in% valid_categorical_vars)) {
-    stop("Error: Invalid categorical variables requested.")
+    stop("Error: Invalid categorical variables inputted")
   }
   
   ## Geography validation : region, division, state should be lowercase
@@ -374,24 +374,19 @@ helper <- function(year = 2022,
     stop("Error: Invalid geography requested.")
   }
   
+  # API Request Construction
   base <- paste("https://api.census.gov/data/", year, "/acs/acs1/pums", sep = "")
-  
-  # Construct query parameters
-  ## Ensure PWGTP is always included for calculations
   all_vars <- unique(c("PWGTP", numeric_vars, categorical_vars))
+  
   ## If geography is "All", do not include 'for' parameter
   if (geography == "All") {
-    query_params <- c(
-      list('get' = paste(all_vars, collapse = ",")),
-      arguments
-    )
-    ## If geography is specified, include geography and geo level in 'for' parameter
-  } else {
-    query_params <- c(
-      list('get' = paste(all_vars, collapse = ",")),
-      list('for' = paste0(geography, ":", geo_level)),
-      arguments
-    )
+    query_params <- c(list('get' = paste(all_vars, collapse = ",")), arguments)
+  }
+  ## If geography is specified, include geography and geo level in 'for' parameter
+  else {
+    query_params <- c(list('get' = paste(all_vars, collapse = ",")),
+                      list('for' = paste0(geography, ":", geo_level)),
+                      arguments)
   }
   
   # request data from API
@@ -403,30 +398,66 @@ helper <- function(year = 2022,
   
   # Set Column names as first row and convert to tibble
   header <- parsed[1,]
-  data <- parsed[-1,]
+  # prevent from dropping the dimensions
+  data <- parsed[-1, , drop = FALSE]
   colnames(data) <- header
   result_tibble <- as_tibble(data)
   
-  #Convert numeric variables as numeric
-  for (num_var in numeric_vars) {
-  if (num_var %in% colnames(result_tibble)) {
-    result_tibble[[num_var]] <- as.numeric(result_tibble[[num_var]])}}
-
+  # Convert numeric variables as numeric
+  all_numeric_vars <- unique(c("PWGTP", numeric_vars))
+  # --- NEW : Exclude time variables from numeric conversion ---
+  all_numeric_vars_except_time <- setdiff(all_numeric_vars, c("JWAP", "JWDP"))
+  for (num_var in all_numeric_vars_except_time) {
+    if (num_var %in% colnames(result_tibble)) {
+      result_tibble[[num_var]] <- as.numeric(result_tibble[[num_var]])
+    }
+  }
+  
   # Converting categorical variables to be factors
   for (cat_var in categorical_vars) {
-  if (cat_var %in% colnames(result_tibble)) {
-    result_tibble[[cat_var]] <- factor(result_tibble[[cat_var]])
+    if (cat_var %in% colnames(result_tibble)) {
+      result_tibble[[cat_var]] <- factor(result_tibble[[cat_var]])
+    }
   }
-}
   
-  # The following line is our new modification, it adds a new class (census) to our result_tibble
-class(result_tibble) <- c("census", class(result_tibble))
-
-return(result_tibble)
+  # NEW: Process Time Variables 
+  if ("JWAP" %in% all_vars) {
+    result_tibble <- result_tibble %>%
+      mutate(
+        # Apply the conversion to each element safely
+        JWAP = sapply(as.character(JWAP), function(code) {
+          # 1. Look up the label for the current code
+          label <- census_lookups$JWAP[[code]]
+          # 2. If the lookup fails (returns NULL), return NA
+          if (is.null(label)) {
+            return(NA_POSIXct_)
+          }
+          # 3. Otherwise, calculate the midpoint. The function handles non-time strings.
+          time_range_to_midpoint(label)
+        }, USE.NAMES = FALSE)
+      )
+  }
   
+  if ("JWDP" %in% all_vars) {
+    result_tibble <- result_tibble %>%
+      mutate(
+        # Apply the same safe conversion to JWDP
+        JWDP = sapply(as.character(JWDP), function(code) {
+          label <- census_lookups$JWDP[[code]]
+          if (is.null(label)) {
+            return(NA_POSIXct_)
+          }
+          time_range_to_midpoint(label)
+        }, USE.NAMES = FALSE)
+      )
+  }
+  
+
+      # The following line is our new modification, it adds a new class (census) to our result_tibble
+  class(result_tibble) <- c("census", class(result_tibble))
+  
+  return(result_tibble)
 }
-
-
 ```
 
 ### Summary Method
