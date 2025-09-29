@@ -6,6 +6,7 @@ library(ggplot2)
 library(tidyr)
 library(stringr)
 library(lubridate)
+library(hms)
 
 
 # --- NEW: Dynamically Generate Lookup Tables from API Data Dictionary ---
@@ -45,7 +46,7 @@ time_range_to_midpoint <- function(time_range_str) {
   # "9:40 p.m. to 9:44 p.m." → c("9:40 p.m.", "9:44 p.m.")
   parts <- str_split(time_range_str, " to ", simplify = TRUE)
   # if there are not exactly two parts, return original string
-  if (length(parts) != 2) return(NA_POSIXct_)
+  if (length(parts) != 2) return(as_hms(NA))
   
   # a.m. -> am, p.m -> pm
   t1_str <- gsub("\\.", "", parts[1])
@@ -57,11 +58,7 @@ time_range_to_midpoint <- function(time_range_str) {
   
   # calculate midpoint
   mid <- t1 + as.numeric(difftime(t2, t1, units = "secs")) / 2
-  
-  mid_str <- format(mid, "%I:%M %p")
-  mid_str <- gsub(" AM", " a.m.", mid_str)
-  mid_str <- gsub(" PM", " p.m.", mid_str)
-  return(mid_str)
+  return(as_hms(mid))
 }
 
 # 1. helper function
@@ -147,30 +144,29 @@ helper <- function(year = 2022,
     result_tibble <- result_tibble %>%
       mutate(
         # Apply the conversion to each element safely
-        JWAP = sapply(as.character(JWAP), function(code) {
+        JWAP = as_hms(sapply(as.character(JWAP), function(code) {
           # 1. Look up the label for the current code
           label <- census_lookups$JWAP[[code]]
           # 2. If the lookup fails (returns NULL), return NA
           if (is.null(label)) {
-            return(NA_POSIXct_)
+            return(as_hms(NA))
           }
           # 3. Otherwise, calculate the midpoint. The function handles non-time strings.
           time_range_to_midpoint(label)
-        }, USE.NAMES = FALSE)
+        }, USE.NAMES = FALSE))
       )
   }
   
   if ("JWDP" %in% all_vars) {
     result_tibble <- result_tibble %>%
       mutate(
-        # Apply the same safe conversion to JWDP
-        JWDP = sapply(as.character(JWDP), function(code) {
+        JWDP = as_hms(sapply(as.character(JWDP), function(code) {
           label <- census_lookups$JWDP[[code]]
           if (is.null(label)) {
-            return(NA_POSIXct_)
+            return(as_hms(NA))
           }
           time_range_to_midpoint(label)
-        }, USE.NAMES = FALSE)
+        }, USE.NAMES = FALSE))
       )
   }
   
@@ -193,7 +189,6 @@ data_2021 <- helper(
 )
 
 print(data_2021)
-
 
 # b. Get data for state:6, year:2022, JWTRNS:10 including GRPIP, JWAP, JWDP, JWMNP, FER, HHL, HISPEED, SCH
 census_lookups <- create_lookup_tables(year = 2022, var_names = c("JWAP", "JWDP"))
@@ -243,7 +238,8 @@ data_2021_2022 <- multiple_years_helper(
   categorical_vars = c("SEX"),
   geography = c("region"),
   geo_level = c("3"),
-  arguments = list('SCHL' = "24")
+  arguments = list('SCHL' = "24"),
+  census_lookups = census_lookups
 )
 
 print(data_2021_2022)
@@ -256,7 +252,8 @@ data_2019_2022 <- multiple_years_helper(
   categorical_vars = c("FER", "HHL", "HISPEED", "SCH"),
   geography = c("state"),
   geo_level = c("6"),
-  arguments = list('JWTRNS' = "10")
+  arguments = list('JWTRNS' = "10"),
+  census_lookups = census_lookups
 )
 
 print(data_2019_2022)
@@ -270,7 +267,8 @@ helper <- function(year = 2022,
                    categorical_vars = c("SEX"),
                    geography = "All",
                    geo_level = "*",
-                   arguments = NULL) {
+                   arguments = NULL,
+                   census_lookups = NULL) {
   
   # Input Validation
   ## year validation
@@ -281,12 +279,12 @@ helper <- function(year = 2022,
   ## variable validation
   valid_numeric_vars <- c("AGEP", "GASP", "GRPIP", "JWAP", "JWDP", "JWMNP")
   if (!all(numeric_vars %in% valid_numeric_vars)) {
-    stop("Error: Invalid numeric variables requested.")
+    stop("Error: Invalid numeric variables inputted")
   }
   
   valid_categorical_vars <- c("FER", "HHL", "HISPEED", "JWTRNS", "SCH", "SCHL", "SEX")
   if (!all(categorical_vars %in% valid_categorical_vars)) {
-    stop("Error: Invalid categorical variables requested.")
+    stop("Error: Invalid categorical variables inputted")
   }
   
   ## Geography validation : region, division, state should be lowercase
@@ -295,24 +293,19 @@ helper <- function(year = 2022,
     stop("Error: Invalid geography requested.")
   }
   
+  # API Request Construction
   base <- paste("https://api.census.gov/data/", year, "/acs/acs1/pums", sep = "")
-  
-  # Construct query parameters
-  ## Ensure PWGTP is always included for calculations
   all_vars <- unique(c("PWGTP", numeric_vars, categorical_vars))
+  
   ## If geography is "All", do not include 'for' parameter
   if (geography == "All") {
-    query_params <- c(
-      list('get' = paste(all_vars, collapse = ",")),
-      arguments
-    )
-    ## If geography is specified, include geography and geo level in 'for' parameter
-  } else {
-    query_params <- c(
-      list('get' = paste(all_vars, collapse = ",")),
-      list('for' = paste0(geography, ":", geo_level)),
-      arguments
-    )
+    query_params <- c(list('get' = paste(all_vars, collapse = ",")), arguments)
+  }
+  ## If geography is specified, include geography and geo level in 'for' parameter
+  else {
+    query_params <- c(list('get' = paste(all_vars, collapse = ",")),
+                      list('for' = paste0(geography, ":", geo_level)),
+                      arguments)
   }
   
   # request data from API
@@ -324,14 +317,20 @@ helper <- function(year = 2022,
   
   # Set Column names as first row and convert to tibble
   header <- parsed[1,]
-  data <- parsed[-1,]
+  # prevent from dropping the dimensions
+  data <- parsed[-1, , drop = FALSE]
   colnames(data) <- header
   result_tibble <- as_tibble(data)
   
-  #Convert numeric variables as numeric
-  for (num_var in numeric_vars) {
+  # Convert numeric variables as numeric
+  all_numeric_vars <- unique(c("PWGTP", numeric_vars))
+  # --- NEW : Exclude time variables from numeric conversion ---
+  all_numeric_vars_except_time <- setdiff(all_numeric_vars, c("JWAP", "JWDP"))
+  for (num_var in all_numeric_vars_except_time) {
     if (num_var %in% colnames(result_tibble)) {
-      result_tibble[[num_var]] <- as.numeric(result_tibble[[num_var]])}}
+      result_tibble[[num_var]] <- as.numeric(result_tibble[[num_var]])
+    }
+  }
   
   # Converting categorical variables to be factors
   for (cat_var in categorical_vars) {
@@ -340,11 +339,41 @@ helper <- function(year = 2022,
     }
   }
   
+  # --- NEW: Process Time Variables ---
+  if ("JWAP" %in% all_vars) {
+    result_tibble <- result_tibble %>%
+      mutate(
+        # Apply the conversion to each element safely
+        JWAP = as_hms(sapply(as.character(JWAP), function(code) {
+          # 1. Look up the label for the current code
+          label <- census_lookups$JWAP[[code]]
+          # 2. If the lookup fails (returns NULL), return NA
+          if (is.null(label)) {
+            return(as_hms(NA))
+          }
+          # 3. Otherwise, calculate the midpoint. The function handles non-time strings.
+          time_range_to_midpoint(label)
+        }, USE.NAMES = FALSE))
+      )
+  }
+  
+  if ("JWDP" %in% all_vars) {
+    result_tibble <- result_tibble %>%
+      mutate(
+        JWDP = as_hms(sapply(as.character(JWDP), function(code) {
+          label <- census_lookups$JWDP[[code]]
+          if (is.null(label)) {
+            return(as_hms(NA))
+          }
+          time_range_to_midpoint(label)
+        }, USE.NAMES = FALSE))
+      )
+  }
+  
   # The following line is our new modification, it adds a new class (census) to our result_tibble
   class(result_tibble) <- c("census", class(result_tibble))
   
   return(result_tibble)
-  
 }
 
 
@@ -378,34 +407,60 @@ summary.census <- function(cen_tbl,num_vars=numeric_vars, cat_vars=categorical_v
     # Get column
     num_var_col<-cen_tbl[[num_var]]
     
-    # get mean and SD of col, ignore NA values
-    num_var_col_mean<-(mean(as.numeric(num_var_col, na.rm = TRUE)))
-    num_var_col_sd<-(sd(as.numeric(num_var_col, na.rm = TRUE)))
-    
-    # Add items to return list
-    
-    mean_item_name<-paste(num_var, "mean")
-    sd_item_name<-paste(num_var,"SD")
-    ret_list[[mean_item_name]] <- num_var_col_mean
-    ret_list[[sd_item_name]] <- num_var_col_sd
+    if (inherits(num_var_col, "hms")) {
+      num_var_col_mean <- mean(num_var_col, na.rm = TRUE)
+      num_var_col_sd <- sd(as.numeric(num_var_col), na.rm = TRUE)
+      
+      # Add items to return list
+      mean_item_name <- paste(num_var, "mean")
+      sd_item_name <- paste(num_var, "SD (seconds)")
+      
+      # Add items to return list : hms type
+      ret_list[[mean_item_name]] <- as_hms(num_var_col_mean)
+      ret_list[[sd_item_name]] <- num_var_col_sd
+      
+    } else {
+      # get mean and SD of col, ignore NA values
+      num_var_col_mean <- mean(as.numeric(num_var_col), na.rm = TRUE)
+      num_var_col_sd <- sd(as.numeric(num_var_col), na.rm = TRUE)
+      
+      # Add items to return list
+      mean_item_name <- paste(num_var, "mean")
+      sd_item_name <- paste(num_var, "SD")
+      ret_list[[mean_item_name]] <- num_var_col_mean
+      ret_list[[sd_item_name]] <- num_var_col_sd
+    }
   }
-  
   print(ret_list)
 }
 
 ## TESTING
 data_2021 <- helper(
   year = 2021,
-  numeric_vars = c("AGEP", "GASP"),
+  numeric_vars = c("AGEP", "GASP", "JWAP", "JWDP", "JWMNP"),
   categorical_vars = c("SEX"),
   geography = c("region"),
   geo_level = c("3"),
-  arguments = list('SCHL' = "23,24")
+  arguments = list('SCHL' = "23,24"),
+  census_lookups = census_lookups
 ) 
 
 summary(data_2021)
 
 summary(data_2021,c("GASP", "AGEP"), c("SEX","SCHL"))
+
+data_2019_2022 <- multiple_years_helper(
+  # Caution : There is no data in 2020
+  years = c(2019, 2021, 2022),
+  numeric_vars = c("GRPIP", "JWAP", "JWDP", "JWMNP"),
+  categorical_vars = c("FER", "HHL", "HISPEED", "SCH"),
+  geography = c("state"),
+  geo_level = c("6"),
+  arguments = list('JWTRNS' = "10"),
+  census_lookups = census_lookups
+)
+
+summary(data_2019_2022)
 
 print("Table by SEX Variable")
 table(data_2021[["SEX"]])
@@ -468,6 +523,7 @@ data_2010_NC <- helper(
   categorical_vars = c("SEX"),
   geography = c("state"),
   geo_level = c("37"),
+  census_lookups = census_lookups
 ) 
 
 data_2010_NY <- helper(
@@ -475,7 +531,8 @@ data_2010_NY <- helper(
   numeric_vars = c("GRPIP"),
   categorical_vars = c("SEX"),
   geography = "state",
-  geo_level = "36"
+  geo_level = "36",
+  census_lookups = census_lookups
 )
 
 data_2022_NC <- helper(
@@ -484,6 +541,7 @@ data_2022_NC <- helper(
   categorical_vars = c("SEX"),
   geography = c("state"),
   geo_level = c("37"),
+  census_lookups = census_lookups
 ) 
 
 data_2022_NY <- helper(
@@ -491,7 +549,8 @@ data_2022_NY <- helper(
   numeric_vars = c("GRPIP"),
   categorical_vars = c("SEX"),
   geography = "state",
-  geo_level = "36"
+  geo_level = "36",
+  census_lookups = census_lookups
 )
 
 summary(data_2010_NC,c("GRPIP"), c("SEX"))
