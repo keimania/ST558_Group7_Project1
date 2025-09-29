@@ -689,7 +689,7 @@ summary(data_2010_NY,c("GRPIP"), c("SEX"))
 summary(data_2022_NY,c("GRPIP"), c("SEX"))
 ```
 
-In New York, the average gross rent as a percentage of household income (GRPIP) is lower in 2022 than 2010. This is surprising--there is a lot of discourse about rising rents in New York and in the United States in general. However, New Yorkers are still spending more on their rents on average than North Carolinians.
+In New York, the average gross rent as a percentage of household income (GRPIP) is marginally in 2022 than 2010. This is surprising--there is a lot of discourse about rising rents in New York and in the United States in general. However, New Yorkers are still spending more on their rents on average than North Carolinians.
 
 ## Plotting
 
@@ -714,6 +714,6 @@ plot.census(data_2010_NY, cat_var = "SEX", num_var = "GRPIP")
 plot.census(data_2022_NY, cat_var = "SEX", num_var = "GRPIP")
 ```
 
--   While GRPIP has decreased for both men (1) and women (2) between 2010 and 2022 in New York as well as North Carolina, there is still a gap between men and women in average gross rent as a percentage of household income, with women paying more than men on average. However, comparing North Carolina and New York, it appears as though North Carolina has a slightly larger gap between rent GRPIP between men and women.
+-   While GRPIP has decreased for both men (1) and women (2) between 2010 and 2022 in New York as well as North Carolina, there is still a gap between men and women in average gross rent as a percentage of household income, with women paying more than men on average. However, comparing North Carolina and New York, it appears as though North Carolina may have a slightly larger gap between rent GRPIP between men and women.
 
 -   While GRPIP generally decreased for North Carolinians and New Yorkers between 2010 and 2022, the gap in GRPIP persists between men and women. This could be a result of the income gap between men and women.
