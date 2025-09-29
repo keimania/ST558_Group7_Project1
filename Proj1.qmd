@@ -556,7 +556,7 @@ summary(data_2021)
 
 This seems to work well.
 
-Next, let's test it out, specifying some variables and verifying the calculated statistics.
+Next, let's test it out, specifying some variables.
 
 ```{r}
 
