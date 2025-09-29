@@ -503,9 +503,17 @@ summary.census <- function(cen_tbl,num_vars=numeric_vars, cat_vars=categorical_v
     # Get column
     num_var_col<-cen_tbl[[num_var]]
     
-    # get mean and SD of col, ignore NA values
-    num_var_col_mean<-(mean(as.numeric(num_var_col, na.rm = TRUE)))
-    num_var_col_sd<-(sd(as.numeric(num_var_col, na.rm = TRUE)))
+    # get weighted mean and SD of col, ignore NA values
+    #num_var_col_mean<-(mean(as.numeric(num_var_col, na.rm = TRUE)))
+    #denominator of this checks to look for na values.
+    num_var_col_mean <- sum(num_var_col * census$PWGTP, na.rm = TRUE) / 
+                    sum(census$PWGTP[!is.na(num_var_col)])
+    
+    ## 
+    ##num_var_col_sd<-(sd(as.numeric(num_var_col, na.rm = TRUE)))
+    
+    num_var_col_sd <- sqrt(sum((num_var_col^2) * census$PWGTP, na.rm = TRUE) / 
+    sum(census$PWGTP[!is.na(num_var_col)]) -num_var_col_mean^2)
     
     # Add items to return list
     
