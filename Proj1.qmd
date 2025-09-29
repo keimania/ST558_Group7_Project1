@@ -250,7 +250,7 @@ data_2021 <- helper(
   categorical_vars = c("SEX"),
   geography = c("region"),
   geo_level = c("3"),
-  arguments = list('SCHL' = "24", 'JWAP' = "258"),
+  arguments = list('JWAP' = "258"),
   census_lookups = census_lookups
 )
 
@@ -266,7 +266,8 @@ data_2022 <- helper(
   categorical_vars = c("FER", "HHL", "HISPEED", "SCH"),
   geography = c("state"),
   geo_level = c("6"),
-  arguments = list('JWTRNS' = "10")
+  arguments = list('JWTRNS' = "10"),
+  census_lookups = census_lookups
 )
 
 print(data_2022)
@@ -311,7 +312,8 @@ data_2021_2022 <- multiple_years_helper(
   categorical_vars = c("SEX"),
   geography = c("region"),
   geo_level = c("3"),
-  arguments = list('SCHL' = "24")
+  arguments = list('SCHL' = "24"),
+  census_lookups = census_lookups
 )
 
 print(data_2021_2022)
@@ -324,7 +326,8 @@ data_2019_2022 <- multiple_years_helper(
   categorical_vars = c("FER", "HHL", "HISPEED", "SCH"),
   geography = c("state"),
   geo_level = c("6"),
-  arguments = list('JWTRNS' = "10")
+  arguments = list('JWTRNS' = "10"),
+  census_lookups = census_lookups
 )
 
 print(data_2019_2022)
@@ -335,11 +338,7 @@ print(data_2019_2022)
 ### Adding Additional Class
 
 -   We would like to add another class to the data, so we can create census specific methods for it.
-
-<!-- -->
-
 -   First, we modify our helper function to create the data, to make the tibble have an additional class of census.
-
 -   I just copied the original helper function from above. The modified line is noted.
 
 ```{r}
