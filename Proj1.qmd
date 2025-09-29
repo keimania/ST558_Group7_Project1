@@ -556,7 +556,7 @@ summary(data_2021)
 
 This seems to work well.
 
-Next, let's test it out, specifying some variables.
+Next, let's test it out, I'll specifying some variables.
 
 ```{r}
 
@@ -616,7 +616,6 @@ plot.census(data_2021, cat_var = "SCHL", num_var = "AGEP")
 
 plot.census(data_2021, cat_var = "SEX", num_var = "GASP")
 ```
-
 
 ## Investigating Something from the Data
 
