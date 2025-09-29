@@ -2,7 +2,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
 
 <meta charset="utf-8">
-<meta name="generator" content="quarto-1.3.433">
+<meta name="generator" content="quarto-1.7.32">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
@@ -21,6 +21,7 @@ ul.task-list li input[type="checkbox"] {
   vertical-align: middle;
 }
 /* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
 pre > code.sourceCode { white-space: pre; position: relative; }
 pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
 pre > code.sourceCode > span:empty { height: 1.2em; }
@@ -63,22 +64,29 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <script src="site_libs/quarto-search/fuse.min.js"></script>
 <script src="site_libs/quarto-search/quarto-search.js"></script>
 <meta name="quarto:offset" content="./">
-<script src="site_libs/quarto-html/quarto.js"></script>
+<script src="site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
 <script src="site_libs/quarto-html/popper.min.js"></script>
 <script src="site_libs/quarto-html/tippy.umd.min.js"></script>
 <script src="site_libs/quarto-html/anchor.min.js"></script>
 <link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="site_libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-37eea08aefeeee20ff55810ff984fec1.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="site_libs/bootstrap/bootstrap.min.css" rel="stylesheet" id="quarto-bootstrap" data-mode="light">
+<link href="site_libs/bootstrap/bootstrap-991b1886d3c685c7aa2b62b80640c7af.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "sidebar",
   "copy-button": false,
   "collapse-after": 3,
   "panel-placement": "start",
   "type": "textbox",
-  "limit": 20,
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
   "language": {
     "search-no-results-text": "No results",
     "search-matching-documents-text": "matching documents",
@@ -87,6 +95,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     "search-more-match-text": "more match in this document",
     "search-more-matches-text": "more matches in this document",
     "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
     "search-detached-cancel-button-title": "Cancel",
     "search-submit-button-title": "Submit",
     "search-label": "Search"
@@ -96,7 +105,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 </head>
 
-<body class="fullcontent">
+<body class="fullcontent quarto-light">
 
 <div id="quarto-search-results"></div>
 <!-- content -->
@@ -122,20 +131,29 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   </div>
   
 
+
 </header>
+
 
 <section id="querying-the-pums-census-api" class="level1">
 <h1>Querying the PUMS Census API</h1>
 <section id="introduction" class="level2">
 <h2 class="anchored" data-anchor-id="introduction">Introduction</h2>
-<p>The goal of this project is to create some functions to query the PUMS census API, and then to summarize and visualize queries. After building these functions, we will then use them to investigate the relationship between location, gross rent as a percentage of income, and sex.</p>
+<p>The goal of this project is to create some functions to query the PUMS census API, and then to summarize and visualize queries.</p>
+<p>Key functionalities developed include:</p>
+<ul>
+<li><p>A <code>helper</code> function to query the API for a single year, with parameters for specific numeric and categorical variables, as well as geographical levels (state, region, etc.).</p></li>
+<li><p>A <code>multiple_years_helper</code> function that extends this capability to retrieve and combine data across several years.</p></li>
+<li><p>Custom S3 methods, <code>summary.census</code> and <code>plot.census</code>, designed to provide tailored summaries and visualizations for the data retrieved from the API.</p></li>
+</ul>
+<p>After building these functions, we will then use them to investigate the relationship between location, gross rent as a percentage of income, and sex.</p>
 </section>
 <section id="data-processing" class="level2">
 <h2 class="anchored" data-anchor-id="data-processing">Data Processing</h2>
 <p>We would ultimately like to build our API querying functions here. Our goal is to allow the user to get information from the API related to the following numeric variables:</p>
 <ul>
 <li><p>AGEP — Age of the person (in years)</p></li>
-<li><p>GASP–Gas constant (monthly)</p></li>
+<li><p>GASP — Gas constant (monthly)</p></li>
 <li><p>GRPIP — Gross Rent as a Percentage of Income</p></li>
 <li><p>JWAP — Time of arrival at work</p></li>
 <li><p>JWDP — Time of departure from work</p></li>
@@ -152,7 +170,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li><p>SEX — Sex</p></li>
 </ul>
 <p>We would also like to be able to specify the geography level. The possible values for this are All, Region, Division, or State. The user can then specify which region, division or state they would like to return information for using the geo_level parameter.</p>
-<p>Furthermore, we will also allow the user to specify an optional argument to subset the data.</p>
+<p>Furthermore, we will also allow the user to specify an optional argument to subset the data. Parameter ‘census_lookups’ will be used to make the mapping table for ‘JWAP’ and ‘JWDP’ columns.</p>
 <section id="lets-build-it" class="level3">
 <h3 class="anchored" data-anchor-id="lets-build-it">Let’s build it!</h3>
 <p>First, we load our libraries</p>
@@ -199,7 +217,7 @@ Attaching package: 'hms'</code></pre>
     hms</code></pre>
 </div>
 </div>
-<p>Second, we build functions to calculate the time midpoint from ‘JWAP’ and ‘JWDP’ columns.</p>
+<p>Second, we build functions to handle time-based variables like JWAP (Time of arrival at work) and JWDP (Time of departure from work). The API returns these as coded values representing time ranges (e.g., “9:40 p.m. to 9:44 p.m.”). The time_range_to_midpoint function parses these strings and calculates the midpoint, returning it as a standardized hms object for easier computation.</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Helper function to extract 'item' list for a given variable</span></span>
 <span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>extract_item <span class="ot">&lt;-</span> <span class="cf">function</span>(variable_data, var_name) {</span>
@@ -365,7 +383,7 @@ Attaching package: 'hms'</code></pre>
 <span id="cb12-110"><a href="#cb12-110" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span>(result_tibble)</span>
 <span id="cb12-111"><a href="#cb12-111" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-<p>Testing the helper function</p>
+<p>Here, we test the helper function with two different single-year queries to ensure it behaves as expected. The first query pulls data for a specific region and educational level in 2021 , while the second retrieves data for a state based on transportation mode in 2022.</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Example 1: Single Year Query</span></span>
 <span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a></span>
@@ -393,16 +411,16 @@ Attaching package: 'hms'</code></pre>
 <pre><code># A tibble: 209 × 8
    PWGTP  AGEP  GASP JWDP     JWAP   SEX   V7    region
    &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;time&gt;   &lt;time&gt; &lt;fct&gt; &lt;chr&gt; &lt;chr&gt; 
- 1    56    22     3 21:14:30 21:42  2     258   3     
- 2    78    50    70 21:14:30 21:42  1     258   3     
- 3   793    32   120 21:34:30 21:42  1     258   3     
- 4    49    63     3 21:34:30 21:42  1     258   3     
- 5    85    45    40 21:04:30 21:42  1     258   3     
- 6    31    63     3 21:04:30 21:42  1     258   3     
- 7    54    58     3 21:24:30 21:42  1     258   3     
- 8    91    50     3 21:34:30 21:42  1     258   3     
- 9   223    53     3 21:14:30 21:42  1     258   3     
-10   316    27    50 21:34:30 21:42  2     258   3     
+ 1    66    56     3 21:04:30 21:42  2     258   3     
+ 2    94    35     3 21:34:30 21:42  1     258   3     
+ 3    47    63    80 21:04:30 21:42  1     258   3     
+ 4   392    31    90 21:34:30 21:42  1     258   3     
+ 5   217    62    30 21:14:30 21:42  2     258   3     
+ 6   111    21    20 21:24:30 21:42  1     258   3     
+ 7   151    54     3 21:24:30 21:42  1     258   3     
+ 8    89    46    40 21:34:30 21:42  2     258   3     
+ 9    78    79     3 21:14:30 21:42  1     258   3     
+10    20    35   180 21:34:30 21:42  1     258   3     
 # ℹ 199 more rows</code></pre>
 </div>
 <div class="sourceCode cell-code" id="cb19"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="co"># b. Get data for state:6, year:2022, JWTRNS:10 including GRPIP, JWAP, JWDP, JWMNP, FER, HHL, HISPEED, SCH</span></span>
@@ -423,18 +441,18 @@ Attaching package: 'hms'</code></pre>
 <span id="cb21-11"><a href="#cb21-11" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(data_2022)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code># A tibble: 4,927 × 11
-   PWGTP GRPIP JWAP   JWDP   JWMNP FER   HHL   HISPEED SCH   JWTRNS state
-   &lt;dbl&gt; &lt;dbl&gt; &lt;time&gt; &lt;time&gt; &lt;dbl&gt; &lt;fct&gt; &lt;fct&gt; &lt;fct&gt;   &lt;fct&gt; &lt;chr&gt;  &lt;chr&gt;
- 1    49     0    NA     NA      5 0     0     0       1     10     06   
- 2    42     0    NA     NA      5 0     0     0       1     10     06   
- 3    48     0    NA     NA      5 0     0     0       1     10     06   
- 4    45     0    NA     NA     30 2     0     0       1     10     06   
- 5     7     0 11:07     NA      5 0     0     0       2     10     06   
- 6   103     0 10:57     NA      2 2     0     0       2     10     06   
- 7    53     0 12:02     NA     35 2     0     0       2     10     06   
- 8    49     0 09:52     NA     20 2     0     0       3     10     06   
- 9   141     0 10:32     NA     10 0     0     0       2     10     06   
-10    22     0    NA     NA      2 0     0     0       1     10     06   
+   PWGTP GRPIP JWAP   JWDP     JWMNP FER   HHL   HISPEED SCH   JWTRNS state
+   &lt;dbl&gt; &lt;dbl&gt; &lt;time&gt; &lt;time&gt;   &lt;dbl&gt; &lt;fct&gt; &lt;fct&gt; &lt;fct&gt;   &lt;fct&gt; &lt;chr&gt;  &lt;chr&gt;
+ 1   151     0 14:07  14:04:30     5 2     2     1       1     10     06   
+ 2    66     0    NA        NA    20 0     4     2       1     10     06   
+ 3    75     0    NA        NA    20 0     4     2       3     10     06   
+ 4    74    31 09:02        NA    30 0     2     1       1     10     06   
+ 5   173    38    NA        NA    15 0     1     1       1     10     06   
+ 6    63     0    NA        NA     5 0     1     1       1     10     06   
+ 7    16     0 09:02        NA     1 0     1     2       1     10     06   
+ 8    98     0    NA        NA     1 0     1     2       1     10     06   
+ 9   102     0    NA        NA    20 0     1     1       1     10     06   
+10    48    30 10:37        NA     5 2     4     1       1     10     06   
 # ℹ 4,917 more rows</code></pre>
 </div>
 </div>
@@ -669,11 +687,11 @@ Attaching package: 'hms'</code></pre>
 </section>
 <section id="summary-method-1" class="level3">
 <h3 class="anchored" data-anchor-id="summary-method-1">Summary Method</h3>
+<p>Now we define summary.census, our custom summary method. This function is designed to work specifically with objects of the “census” class.</p>
 <ul>
-<li><p>Below is a summary method.</p></li>
 <li><p>As arguments, it takes the tibble with class census, the numeric variable(s) to summarize, the categorical variable(s) to summarize. Default values for numeric variables and categorical variables are all variables.</p></li>
 <li><p>It returns a named list that contains summary statistics for each column.</p></li>
-<li><p>A count table is created for categorical variables, and mean and standard deviation are calculated for numeric variables.</p></li>
+<li><p>A count table is created for categorical variables. For each numeric variable, it calculates the weighted mean and standard deviation, using the person weight variable PWGTP to ensure the statistics are representative of the population.</p></li>
 <li><p>The names of the returned list described the summarized variable and relevant statistic.</p></li>
 </ul>
 <div class="cell">
@@ -858,6 +876,7 @@ $`AGEP SD`
 </section>
 <section id="plotting-method" class="level2">
 <h2 class="anchored" data-anchor-id="plotting-method">Plotting Method</h2>
+<p>We now create a custom plot.census method to generate box plots that visualize the relationship between a specified categorical and numeric variable.</p>
 <ul>
 <li><p>The following code creates box plots based on a user specified categorical variable and numeric variable.</p></li>
 <li><p>It also checks to make sure variables are correctly specified, and stops if they aren’t.</p></li>
@@ -899,46 +918,42 @@ $`AGEP SD`
 <span id="cb46-8"><a href="#cb46-8" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb46-9"><a href="#cb46-9" aria-hidden="true" tabindex="-1"></a><span class="fu">plot.census</span>(data_2021, <span class="at">cat_var =</span> <span class="st">"SCHL"</span>, <span class="at">num_var =</span> <span class="st">"GASP"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-display">
-<p><img src="Proj1_files/figure-html/unnamed-chunk-13-1.png" class="img-fluid" width="672"></p>
+<div>
+<figure class="figure">
+<p><img src="Proj1_files/figure-html/unnamed-chunk-13-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
 </div>
 <div class="sourceCode cell-code" id="cb47"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb47-1"><a href="#cb47-1" aria-hidden="true" tabindex="-1"></a><span class="fu">plot.census</span>(data_2021, <span class="at">cat_var =</span> <span class="st">"SCHL"</span>, <span class="at">num_var =</span> <span class="st">"AGEP"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-display">
-<p><img src="Proj1_files/figure-html/unnamed-chunk-13-2.png" class="img-fluid" width="672"></p>
+<div>
+<figure class="figure">
+<p><img src="Proj1_files/figure-html/unnamed-chunk-13-2.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
 </div>
 <div class="sourceCode cell-code" id="cb48"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb48-1"><a href="#cb48-1" aria-hidden="true" tabindex="-1"></a><span class="fu">plot.census</span>(data_2021, <span class="at">cat_var =</span> <span class="st">"SEX"</span>, <span class="at">num_var =</span> <span class="st">"GASP"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Warning in rq.fit.br(wx, wy, tau = tau, ...): Solution may be nonunique</code></pre>
+</div>
 <div class="cell-output-display">
-<p><img src="Proj1_files/figure-html/unnamed-chunk-13-3.png" class="img-fluid" width="672"></p>
+<div>
+<figure class="figure">
+<p><img src="Proj1_files/figure-html/unnamed-chunk-13-3.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
 </div>
 </div>
 </section>
-<section id="investigating-something-from-the-data" class="level2">
-<h2 class="anchored" data-anchor-id="investigating-something-from-the-data">Investigating Something from the Data</h2>
+<section id="data-analysis-housing-affordability-in-ny-vs.-nc" class="level2">
+<h2 class="anchored" data-anchor-id="data-analysis-housing-affordability-in-ny-vs.-nc">Data Analysis: Housing Affordability in NY vs.&nbsp;NC</h2>
 <ul>
 <li>I’d like to investigate affordability between states, over time. My fundamental question is–how has gross rent as a percentage of household income past 12 months (GRPIP) changed over time, and does this vary by sex? Is there a difference in this between North Carolina, a state that is considered relatively affordable, and New York, a state that is reputed to be unaffordable?</li>
 </ul>
 <p>First, we get the data.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb49"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb49-1"><a href="#cb49-1" aria-hidden="true" tabindex="-1"></a>data_2010_NC <span class="ot">&lt;-</span> <span class="fu">helper</span>(</span>
-<span id="cb49-2"><a href="#cb49-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">year =</span> <span class="dv">2010</span>,</span>
-<span id="cb49-3"><a href="#cb49-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">numeric_vars =</span> <span class="fu">c</span>(<span class="st">"GRPIP"</span>),</span>
-<span id="cb49-4"><a href="#cb49-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">categorical_vars =</span> <span class="fu">c</span>(<span class="st">"SEX"</span>),</span>
-<span id="cb49-5"><a href="#cb49-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">geography =</span> <span class="fu">c</span>(<span class="st">"state"</span>),</span>
-<span id="cb49-6"><a href="#cb49-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">geo_level =</span> <span class="fu">c</span>(<span class="st">"37"</span>),</span>
-<span id="cb49-7"><a href="#cb49-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">census_lookups =</span> census_lookups</span>
-<span id="cb49-8"><a href="#cb49-8" aria-hidden="true" tabindex="-1"></a>) </span>
-<span id="cb49-9"><a href="#cb49-9" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb49-10"><a href="#cb49-10" aria-hidden="true" tabindex="-1"></a>data_2010_NY <span class="ot">&lt;-</span> <span class="fu">helper</span>(</span>
-<span id="cb49-11"><a href="#cb49-11" aria-hidden="true" tabindex="-1"></a>  <span class="at">year =</span> <span class="dv">2010</span>,</span>
-<span id="cb49-12"><a href="#cb49-12" aria-hidden="true" tabindex="-1"></a>  <span class="at">numeric_vars =</span> <span class="fu">c</span>(<span class="st">"GRPIP"</span>),</span>
-<span id="cb49-13"><a href="#cb49-13" aria-hidden="true" tabindex="-1"></a>  <span class="at">categorical_vars =</span> <span class="fu">c</span>(<span class="st">"SEX"</span>),</span>
-<span id="cb49-14"><a href="#cb49-14" aria-hidden="true" tabindex="-1"></a>  <span class="at">geography =</span> <span class="st">"state"</span>,</span>
-<span id="cb49-15"><a href="#cb49-15" aria-hidden="true" tabindex="-1"></a>  <span class="at">geo_level =</span> <span class="st">"36"</span>,</span>
-<span id="cb49-16"><a href="#cb49-16" aria-hidden="true" tabindex="-1"></a>  <span class="at">census_lookups =</span> census_lookups</span>
-<span id="cb49-17"><a href="#cb49-17" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</div>
-<div class="cell">
-<div class="sourceCode cell-code" id="cb50"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb50-1"><a href="#cb50-1" aria-hidden="true" tabindex="-1"></a>data_2022_NC <span class="ot">&lt;-</span> <span class="fu">helper</span>(</span>
-<span id="cb50-2"><a href="#cb50-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">year =</span> <span class="dv">2022</span>,</span>
+<div class="sourceCode cell-code" id="cb50"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb50-1"><a href="#cb50-1" aria-hidden="true" tabindex="-1"></a>data_2010_NC <span class="ot">&lt;-</span> <span class="fu">helper</span>(</span>
+<span id="cb50-2"><a href="#cb50-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">year =</span> <span class="dv">2010</span>,</span>
 <span id="cb50-3"><a href="#cb50-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">numeric_vars =</span> <span class="fu">c</span>(<span class="st">"GRPIP"</span>),</span>
 <span id="cb50-4"><a href="#cb50-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">categorical_vars =</span> <span class="fu">c</span>(<span class="st">"SEX"</span>),</span>
 <span id="cb50-5"><a href="#cb50-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">geography =</span> <span class="fu">c</span>(<span class="st">"state"</span>),</span>
@@ -946,8 +961,8 @@ $`AGEP SD`
 <span id="cb50-7"><a href="#cb50-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">census_lookups =</span> census_lookups</span>
 <span id="cb50-8"><a href="#cb50-8" aria-hidden="true" tabindex="-1"></a>) </span>
 <span id="cb50-9"><a href="#cb50-9" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb50-10"><a href="#cb50-10" aria-hidden="true" tabindex="-1"></a>data_2022_NY <span class="ot">&lt;-</span> <span class="fu">helper</span>(</span>
-<span id="cb50-11"><a href="#cb50-11" aria-hidden="true" tabindex="-1"></a>  <span class="at">year =</span> <span class="dv">2022</span>,</span>
+<span id="cb50-10"><a href="#cb50-10" aria-hidden="true" tabindex="-1"></a>data_2010_NY <span class="ot">&lt;-</span> <span class="fu">helper</span>(</span>
+<span id="cb50-11"><a href="#cb50-11" aria-hidden="true" tabindex="-1"></a>  <span class="at">year =</span> <span class="dv">2010</span>,</span>
 <span id="cb50-12"><a href="#cb50-12" aria-hidden="true" tabindex="-1"></a>  <span class="at">numeric_vars =</span> <span class="fu">c</span>(<span class="st">"GRPIP"</span>),</span>
 <span id="cb50-13"><a href="#cb50-13" aria-hidden="true" tabindex="-1"></a>  <span class="at">categorical_vars =</span> <span class="fu">c</span>(<span class="st">"SEX"</span>),</span>
 <span id="cb50-14"><a href="#cb50-14" aria-hidden="true" tabindex="-1"></a>  <span class="at">geography =</span> <span class="st">"state"</span>,</span>
@@ -955,9 +970,28 @@ $`AGEP SD`
 <span id="cb50-16"><a href="#cb50-16" aria-hidden="true" tabindex="-1"></a>  <span class="at">census_lookups =</span> census_lookups</span>
 <span id="cb50-17"><a href="#cb50-17" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb51"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb51-1"><a href="#cb51-1" aria-hidden="true" tabindex="-1"></a>data_2022_NC <span class="ot">&lt;-</span> <span class="fu">helper</span>(</span>
+<span id="cb51-2"><a href="#cb51-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">year =</span> <span class="dv">2022</span>,</span>
+<span id="cb51-3"><a href="#cb51-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">numeric_vars =</span> <span class="fu">c</span>(<span class="st">"GRPIP"</span>),</span>
+<span id="cb51-4"><a href="#cb51-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">categorical_vars =</span> <span class="fu">c</span>(<span class="st">"SEX"</span>),</span>
+<span id="cb51-5"><a href="#cb51-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">geography =</span> <span class="fu">c</span>(<span class="st">"state"</span>),</span>
+<span id="cb51-6"><a href="#cb51-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">geo_level =</span> <span class="fu">c</span>(<span class="st">"37"</span>),</span>
+<span id="cb51-7"><a href="#cb51-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">census_lookups =</span> census_lookups</span>
+<span id="cb51-8"><a href="#cb51-8" aria-hidden="true" tabindex="-1"></a>) </span>
+<span id="cb51-9"><a href="#cb51-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb51-10"><a href="#cb51-10" aria-hidden="true" tabindex="-1"></a>data_2022_NY <span class="ot">&lt;-</span> <span class="fu">helper</span>(</span>
+<span id="cb51-11"><a href="#cb51-11" aria-hidden="true" tabindex="-1"></a>  <span class="at">year =</span> <span class="dv">2022</span>,</span>
+<span id="cb51-12"><a href="#cb51-12" aria-hidden="true" tabindex="-1"></a>  <span class="at">numeric_vars =</span> <span class="fu">c</span>(<span class="st">"GRPIP"</span>),</span>
+<span id="cb51-13"><a href="#cb51-13" aria-hidden="true" tabindex="-1"></a>  <span class="at">categorical_vars =</span> <span class="fu">c</span>(<span class="st">"SEX"</span>),</span>
+<span id="cb51-14"><a href="#cb51-14" aria-hidden="true" tabindex="-1"></a>  <span class="at">geography =</span> <span class="st">"state"</span>,</span>
+<span id="cb51-15"><a href="#cb51-15" aria-hidden="true" tabindex="-1"></a>  <span class="at">geo_level =</span> <span class="st">"36"</span>,</span>
+<span id="cb51-16"><a href="#cb51-16" aria-hidden="true" tabindex="-1"></a>  <span class="at">census_lookups =</span> census_lookups</span>
+<span id="cb51-17"><a href="#cb51-17" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
 <p>Let’s look at a summary of the data for our relevant variables</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb51"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb51-1"><a href="#cb51-1" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(data_2010_NC,<span class="fu">c</span>(<span class="st">"GRPIP"</span>), <span class="fu">c</span>(<span class="st">"SEX"</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb52"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb52-1"><a href="#cb52-1" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(data_2010_NC,<span class="fu">c</span>(<span class="st">"GRPIP"</span>), <span class="fu">c</span>(<span class="st">"SEX"</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>$`SEX count`
 
@@ -972,7 +1006,7 @@ $`GRPIP SD`
 </div>
 </div>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb53"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb53-1"><a href="#cb53-1" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(data_2022_NC,<span class="fu">c</span>(<span class="st">"GRPIP"</span>), <span class="fu">c</span>(<span class="st">"SEX"</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb54"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb54-1"><a href="#cb54-1" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(data_2022_NC,<span class="fu">c</span>(<span class="st">"GRPIP"</span>), <span class="fu">c</span>(<span class="st">"SEX"</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>$`SEX count`
 
@@ -988,7 +1022,7 @@ $`GRPIP SD`
 </div>
 <p>In North Carolina, the average gross rent as a percentage of household income (GRPIP) is lower in 2022 than 2010.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb55"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb55-1"><a href="#cb55-1" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(data_2010_NY,<span class="fu">c</span>(<span class="st">"GRPIP"</span>), <span class="fu">c</span>(<span class="st">"SEX"</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb56"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb56-1"><a href="#cb56-1" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(data_2010_NY,<span class="fu">c</span>(<span class="st">"GRPIP"</span>), <span class="fu">c</span>(<span class="st">"SEX"</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>$`SEX count`
 
@@ -1003,7 +1037,7 @@ $`GRPIP SD`
 </div>
 </div>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb57"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb57-1"><a href="#cb57-1" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(data_2022_NY,<span class="fu">c</span>(<span class="st">"GRPIP"</span>), <span class="fu">c</span>(<span class="st">"SEX"</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb58"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb58-1"><a href="#cb58-1" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(data_2022_NY,<span class="fu">c</span>(<span class="st">"GRPIP"</span>), <span class="fu">c</span>(<span class="st">"SEX"</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>$`SEX count`
 
@@ -1023,28 +1057,44 @@ $`GRPIP SD`
 <h2 class="anchored" data-anchor-id="plotting">Plotting</h2>
 <p>First, I’d like to compare sex and GRPIP.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb59"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb59-1"><a href="#cb59-1" aria-hidden="true" tabindex="-1"></a><span class="fu">plot.census</span>(data_2010_NC, <span class="at">cat_var =</span> <span class="st">"SEX"</span>, <span class="at">num_var =</span> <span class="st">"GRPIP"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb60"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb60-1"><a href="#cb60-1" aria-hidden="true" tabindex="-1"></a><span class="fu">plot.census</span>(data_2010_NC, <span class="at">cat_var =</span> <span class="st">"SEX"</span>, <span class="at">num_var =</span> <span class="st">"GRPIP"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-display">
-<p><img src="Proj1_files/figure-html/unnamed-chunk-20-1.png" class="img-fluid" width="672"></p>
+<div>
+<figure class="figure">
+<p><img src="Proj1_files/figure-html/unnamed-chunk-20-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
 </div>
 </div>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb60"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb60-1"><a href="#cb60-1" aria-hidden="true" tabindex="-1"></a><span class="fu">plot.census</span>(data_2022_NC, <span class="at">cat_var =</span> <span class="st">"SEX"</span>, <span class="at">num_var =</span> <span class="st">"GRPIP"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb61"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb61-1"><a href="#cb61-1" aria-hidden="true" tabindex="-1"></a><span class="fu">plot.census</span>(data_2022_NC, <span class="at">cat_var =</span> <span class="st">"SEX"</span>, <span class="at">num_var =</span> <span class="st">"GRPIP"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-display">
-<p><img src="Proj1_files/figure-html/unnamed-chunk-21-1.png" class="img-fluid" width="672"></p>
+<div>
+<figure class="figure">
+<p><img src="Proj1_files/figure-html/unnamed-chunk-21-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
 </div>
 </div>
 <p>While GRPIP has decreased for both men (1) and women (2) between 2010 and 2022 in North Carolina, there is still a gap between men and women in average gross rent as a percentage of household income, with women paying more than men on average.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb61"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb61-1"><a href="#cb61-1" aria-hidden="true" tabindex="-1"></a><span class="fu">plot.census</span>(data_2010_NY, <span class="at">cat_var =</span> <span class="st">"SEX"</span>, <span class="at">num_var =</span> <span class="st">"GRPIP"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb62"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb62-1"><a href="#cb62-1" aria-hidden="true" tabindex="-1"></a><span class="fu">plot.census</span>(data_2010_NY, <span class="at">cat_var =</span> <span class="st">"SEX"</span>, <span class="at">num_var =</span> <span class="st">"GRPIP"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-display">
-<p><img src="Proj1_files/figure-html/unnamed-chunk-22-1.png" class="img-fluid" width="672"></p>
+<div>
+<figure class="figure">
+<p><img src="Proj1_files/figure-html/unnamed-chunk-22-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
 </div>
 </div>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb62"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb62-1"><a href="#cb62-1" aria-hidden="true" tabindex="-1"></a><span class="fu">plot.census</span>(data_2022_NY, <span class="at">cat_var =</span> <span class="st">"SEX"</span>, <span class="at">num_var =</span> <span class="st">"GRPIP"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb63"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb63-1"><a href="#cb63-1" aria-hidden="true" tabindex="-1"></a><span class="fu">plot.census</span>(data_2022_NY, <span class="at">cat_var =</span> <span class="st">"SEX"</span>, <span class="at">num_var =</span> <span class="st">"GRPIP"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-display">
-<p><img src="Proj1_files/figure-html/unnamed-chunk-23-1.png" class="img-fluid" width="672"></p>
+<div>
+<figure class="figure">
+<p><img src="Proj1_files/figure-html/unnamed-chunk-23-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
 </div>
 </div>
 <ul>
@@ -1058,239 +1108,406 @@ $`GRPIP SD`
 
 </main> <!-- /main -->
 <script id="quarto-html-after-body" type="application/javascript">
-window.document.addEventListener("DOMContentLoaded", function (event) {
-  const toggleBodyColorMode = (bsSheetEl) => {
-    const mode = bsSheetEl.getAttribute("data-mode");
-    const bodyEl = window.document.querySelector("body");
-    if (mode === "dark") {
-      bodyEl.classList.add("quarto-dark");
-      bodyEl.classList.remove("quarto-light");
-    } else {
-      bodyEl.classList.add("quarto-light");
-      bodyEl.classList.remove("quarto-dark");
-    }
-  }
-  const toggleBodyColorPrimary = () => {
-    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
-    if (bsSheetEl) {
-      toggleBodyColorMode(bsSheetEl);
-    }
-  }
-  toggleBodyColorPrimary();  
-  const icon = "";
-  const anchorJS = new window.AnchorJS();
-  anchorJS.options = {
-    placement: 'right',
-    icon: icon
-  };
-  anchorJS.add('.anchored');
-  const isCodeAnnotation = (el) => {
-    for (const clz of el.classList) {
-      if (clz.startsWith('code-annotation-')) {                     
-        return true;
-      }
-    }
-    return false;
-  }
-  const clipboard = new window.ClipboardJS('.code-copy-button', {
-    text: function(trigger) {
-      const codeEl = trigger.previousElementSibling.cloneNode(true);
-      for (const childEl of codeEl.children) {
-        if (isCodeAnnotation(childEl)) {
-          childEl.remove();
-        }
-      }
-      return codeEl.innerText;
-    }
-  });
-  clipboard.on('success', function(e) {
-    // button target
-    const button = e.trigger;
-    // don't keep focus
-    button.blur();
-    // flash "checked"
-    button.classList.add('code-copy-button-checked');
-    var currentTitle = button.getAttribute("title");
-    button.setAttribute("title", "Copied!");
-    let tooltip;
-    if (window.bootstrap) {
-      button.setAttribute("data-bs-toggle", "tooltip");
-      button.setAttribute("data-bs-placement", "left");
-      button.setAttribute("data-bs-title", "Copied!");
-      tooltip = new bootstrap.Tooltip(button, 
-        { trigger: "manual", 
-          customClass: "code-copy-button-tooltip",
-          offset: [0, -8]});
-      tooltip.show();    
-    }
-    setTimeout(function() {
-      if (tooltip) {
-        tooltip.hide();
-        button.removeAttribute("data-bs-title");
-        button.removeAttribute("data-bs-toggle");
-        button.removeAttribute("data-bs-placement");
-      }
-      button.setAttribute("title", currentTitle);
-      button.classList.remove('code-copy-button-checked');
-    }, 1000);
-    // clear code selection
-    e.clearSelection();
-  });
-  function tippyHover(el, contentFn) {
-    const config = {
-      allowHTML: true,
-      content: contentFn,
-      maxWidth: 500,
-      delay: 100,
-      arrow: false,
-      appendTo: function(el) {
-          return el.parentElement;
-      },
-      interactive: true,
-      interactiveBorder: 10,
-      theme: 'quarto',
-      placement: 'bottom-start'
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
     };
-    window.tippy(el, config); 
-  }
-  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
-  for (var i=0; i<noterefs.length; i++) {
-    const ref = noterefs[i];
-    tippyHover(ref, function() {
-      // use id or data attribute instead here
-      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
-      try { href = new URL(href).hash; } catch {}
-      const id = href.replace(/^#\/?/, "");
-      const note = window.document.getElementById(id);
-      return note.innerHTML;
-    });
-  }
-      let selectedAnnoteEl;
-      const selectorForAnnotation = ( cell, annotation) => {
-        let cellAttr = 'data-code-cell="' + cell + '"';
-        let lineAttr = 'data-code-annotation="' +  annotation + '"';
-        const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
-        return selector;
-      }
-      const selectCodeLines = (annoteEl) => {
-        const doc = window.document;
-        const targetCell = annoteEl.getAttribute("data-target-cell");
-        const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
-        const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
-        const lines = annoteSpan.getAttribute("data-code-lines").split(",");
-        const lineIds = lines.map((line) => {
-          return targetCell + "-" + line;
-        })
-        let top = null;
-        let height = null;
-        let parent = null;
-        if (lineIds.length > 0) {
-            //compute the position of the single el (top and bottom and make a div)
-            const el = window.document.getElementById(lineIds[0]);
-            top = el.offsetTop;
-            height = el.offsetHeight;
-            parent = el.parentElement.parentElement;
-          if (lineIds.length > 1) {
-            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
-            const bottom = lastEl.offsetTop + lastEl.offsetHeight;
-            height = bottom - top;
-          }
-          if (top !== null && height !== null && parent !== null) {
-            // cook up a div (if necessary) and position it 
-            let div = window.document.getElementById("code-annotation-line-highlight");
-            if (div === null) {
-              div = window.document.createElement("div");
-              div.setAttribute("id", "code-annotation-line-highlight");
-              div.style.position = 'absolute';
-              parent.appendChild(div);
-            }
-            div.style.top = top - 2 + "px";
-            div.style.height = height + 4 + "px";
-            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
-            if (gutterDiv === null) {
-              gutterDiv = window.document.createElement("div");
-              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
-              gutterDiv.style.position = 'absolute';
-              const codeCell = window.document.getElementById(targetCell);
-              const gutter = codeCell.querySelector('.code-annotation-gutter');
-              gutter.appendChild(gutterDiv);
-            }
-            gutterDiv.style.top = top - 2 + "px";
-            gutterDiv.style.height = height + 4 + "px";
-          }
-          selectedAnnoteEl = annoteEl;
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
         }
-      };
-      const unselectCodeLines = () => {
-        const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
-        elementsIds.forEach((elId) => {
-          const div = window.document.getElementById(elId);
-          if (div) {
-            div.remove();
-          }
-        });
-        selectedAnnoteEl = undefined;
-      };
-      // Attach click handler to the DT
-      const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
-      for (const annoteDlNode of annoteDls) {
-        annoteDlNode.addEventListener('click', (event) => {
-          const clickedEl = event.target;
-          if (clickedEl !== selectedAnnoteEl) {
-            unselectCodeLines();
-            const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
-            if (activeEl) {
-              activeEl.classList.remove('code-annotation-active');
-            }
-            selectCodeLines(clickedEl);
-            clickedEl.classList.add('code-annotation-active');
-          } else {
-            // Unselect the line
-            unselectCodeLines();
-            clickedEl.classList.remove('code-annotation-active');
-          }
-        });
       }
-  const findCites = (el) => {
-    const parentEl = el.parentElement;
-    if (parentEl) {
-      const cites = parentEl.dataset.cites;
-      if (cites) {
-        return {
-          el,
-          cites: cites.split(' ')
-        };
-      } else {
-        return findCites(el.parentElement)
-      }
-    } else {
-      return undefined;
+      return false;
     }
-  };
-  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
-  for (var i=0; i<bibliorefs.length; i++) {
-    const ref = bibliorefs[i];
-    const citeInfo = findCites(ref);
-    if (citeInfo) {
-      tippyHover(citeInfo.el, function() {
-        var popup = window.document.createElement('div');
-        citeInfo.cites.forEach(function(cite) {
-          var citeDiv = window.document.createElement('div');
-          citeDiv.classList.add('hanging-indent');
-          citeDiv.classList.add('csl-entry');
-          var biblioDiv = window.document.getElementById('ref-' + cite);
-          if (biblioDiv) {
-            citeDiv.innerHTML = biblioDiv.innerHTML;
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+        const codeEl = trigger.previousElementSibling.cloneNode(true);
+        for (const childEl of codeEl.children) {
+          if (isCodeAnnotation(childEl)) {
+            childEl.remove();
           }
-          popup.appendChild(citeDiv);
-        });
-        return popup.innerHTML;
+        }
+        return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
       });
     }
-  }
-});
-</script>
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
 </div> <!-- /content -->
+
 
 
 

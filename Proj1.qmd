@@ -8,7 +8,17 @@ editor: visual
 
 ## Introduction
 
-The goal of this project is to create some functions to query the PUMS census API, and then to summarize and visualize queries. After building these functions, we will then use them to investigate the relationship between location, gross rent as a percentage of income, and sex.
+The goal of this project is to create some functions to query the PUMS census API, and then to summarize and visualize queries.
+
+Key functionalities developed include:
+
+-   A `helper` function to query the API for a single year, with parameters for specific numeric and categorical variables, as well as geographical levels (state, region, etc.).
+
+-   A `multiple_years_helper` function that extends this capability to retrieve and combine data across several years.
+
+-   Custom S3 methods, `summary.census` and `plot.census`, designed to provide tailored summaries and visualizations for the data retrieved from the API.
+
+After building these functions, we will then use them to investigate the relationship between location, gross rent as a percentage of income, and sex.
 
 ## Data Processing
 
@@ -16,7 +26,7 @@ We would ultimately like to build our API querying functions here. Our goal is t
 
 -   AGEP --- Age of the person (in years)
 
--   GASP--Gas constant (monthly)
+-   GASP --- Gas constant (monthly)
 
 -   GRPIP --- Gross Rent as a Percentage of Income
 
@@ -44,7 +54,7 @@ And categorical variables:
 
 We would also like to be able to specify the geography level. The possible values for this are All, Region, Division, or State. The user can then specify which region, division or state they would like to return information for using the geo_level parameter.
 
-Furthermore, we will also allow the user to specify an optional argument to subset the data.
+Furthermore, we will also allow the user to specify an optional argument to subset the data. Parameter 'census_lookups' will be used to make the mapping table for 'JWAP' and 'JWDP' columns.
 
 ### Let's build it!
 
@@ -62,7 +72,7 @@ library(lubridate)
 library(hms)
 ```
 
-Second, we build functions to calculate the time midpoint from 'JWAP' and 'JWDP' columns.
+Second, we build functions to handle time-based variables like JWAP (Time of arrival at work) and JWDP (Time of departure from work). The API returns these as coded values representing time ranges (e.g., "9:40 p.m. to 9:44 p.m."). The time_range_to_midpoint function parses these strings and calculates the midpoint, returning it as a standardized hms object for easier computation.
 
 ```{r}
 # Helper function to extract 'item' list for a given variable
@@ -232,7 +242,7 @@ helper <- function(year = 2022,
 }
 ```
 
-Testing the helper function
+Here, we test the helper function with two different single-year queries to ensure it behaves as expected. The first query pulls data for a specific region and educational level in 2021 , while the second retrieves data for a state based on transportation mode in 2022.
 
 ```{r}
 # Example 1: Single Year Query
@@ -455,13 +465,13 @@ helper <- function(year = 2022,
 
 ### Summary Method
 
--   Below is a summary method.
+Now we define summary.census, our custom summary method. This function is designed to work specifically with objects of the "census" class.
 
 -   As arguments, it takes the tibble with class census, the numeric variable(s) to summarize, the categorical variable(s) to summarize. Default values for numeric variables and categorical variables are all variables.
 
 -   It returns a named list that contains summary statistics for each column.
 
--   A count table is created for categorical variables, and mean and standard deviation are calculated for numeric variables.
+-   A count table is created for categorical variables. For each numeric variable, it calculates the weighted mean and standard deviation, using the person weight variable PWGTP to ensure the statistics are representative of the population.
 
 -   The names of the returned list described the summarized variable and relevant statistic.
 
@@ -567,6 +577,8 @@ summary(data_2021,c("GASP", "AGEP"), c("SEX","SCHL"))
 
 ## Plotting Method
 
+We now create a custom plot.census method to generate box plots that visualize the relationship between a specified categorical and numeric variable.
+
 -   The following code creates box plots based on a user specified categorical variable and numeric variable.
 
 -   It also checks to make sure variables are correctly specified, and stops if they aren't.
@@ -617,7 +629,7 @@ plot.census(data_2021, cat_var = "SCHL", num_var = "AGEP")
 plot.census(data_2021, cat_var = "SEX", num_var = "GASP")
 ```
 
-## Investigating Something from the Data
+## Data Analysis: Housing Affordability in NY vs. NC
 
 -   I'd like to investigate affordability between states, over time. My fundamental question is--how has gross rent as a percentage of household income past 12 months (GRPIP) changed over time, and does this vary by sex? Is there a difference in this between North Carolina, a state that is considered relatively affordable, and New York, a state that is reputed to be unaffordable?
 
